@@ -12,6 +12,8 @@ export function mempoolTxUrl(txid?: string, network?: Network) {
                 return `https://mempool.space/tx/${txid}`;
             case "testnet":
                 return `https://mempool.space/testnet/tx/${txid}`;
+            case "testnet4":
+                return `https://mempool.space/testnet4/tx/${txid}`;
             case "signet":
                 return `https://mutinynet.com/tx/${txid}`;
             default:

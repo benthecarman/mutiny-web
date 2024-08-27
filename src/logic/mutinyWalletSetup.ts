@@ -1,4 +1,4 @@
-export type Network = "bitcoin" | "testnet" | "regtest" | "signet";
+export type Network = "bitcoin" | "testnet" | "testnet4" | "regtest" | "signet";
 
 export type MutinyWalletSettingStrings = {
     network?: string;

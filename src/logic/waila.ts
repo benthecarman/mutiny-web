@@ -37,7 +37,9 @@ export async function toParsedParams(
         ? ourNetwork
         : params.network === "testnet" && ourNetwork === "signet"
           ? "signet"
-          : params.network;
+          : params.network === "testnet" && ourNetwork === "testnet4"
+            ? "testnet4"
+            : params.network;
 
     if (network !== ourNetwork) {
         return {
