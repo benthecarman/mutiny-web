@@ -1,4 +1,4 @@
-import { MutinyInvoice, TagItem } from "@mutinywallet/mutiny-wasm";
+import { MutinyInvoice, TagItem } from "@benthecarman/mutiny-wasm";
 import { useLocation, useNavigate, useSearchParams } from "@solidjs/router";
 import { Eye, EyeOff, Link, X, Zap } from "lucide-solid";
 import {

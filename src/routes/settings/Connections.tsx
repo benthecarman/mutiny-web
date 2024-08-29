@@ -1,4 +1,4 @@
-import { NwcProfile } from "@mutinywallet/mutiny-wasm";
+import { NwcProfile } from "@benthecarman/mutiny-wasm";
 import { A, useSearchParams } from "@solidjs/router";
 import { Scan } from "lucide-solid";
 import {

@@ -75,7 +75,7 @@ export default defineConfig({
             "@capacitor/toast"
         ],
         // This is necessary because otherwise `vite dev` can't find the wasm
-        exclude: ["@mutinywallet/mutiny-wasm"],
+        exclude: ["@benthecarman/mutiny-wasm"],
         esbuildOptions: {
             target: "esnext"
         }

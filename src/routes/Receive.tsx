@@ -1,4 +1,4 @@
-import { MutinyInvoice } from "@mutinywallet/mutiny-wasm";
+import { MutinyInvoice } from "@benthecarman/mutiny-wasm";
 import { useNavigate } from "@solidjs/router";
 import { CircleHelp, Link, Users, Zap } from "lucide-solid";
 import {

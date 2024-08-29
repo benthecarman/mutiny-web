@@ -16,7 +16,7 @@ import initMutinyWallet, {
     PaymentParams,
     PendingNwcInvoice,
     TagItem
-} from "@mutinywallet/mutiny-wasm";
+} from "@benthecarman/mutiny-wasm";
 
 import { IActivityItem } from "~/components";
 import { MutinyWalletSettingStrings } from "~/logic/mutinyWalletSetup";

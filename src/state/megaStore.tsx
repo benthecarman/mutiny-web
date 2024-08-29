@@ -1,5 +1,5 @@
 // Inspired by https://github.com/solidjs/solid-realworld/blob/main/src/store/index.js
-import { MutinyBalance, TagItem } from "@mutinywallet/mutiny-wasm";
+import { MutinyBalance, TagItem } from "@benthecarman/mutiny-wasm";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { Remote } from "comlink";

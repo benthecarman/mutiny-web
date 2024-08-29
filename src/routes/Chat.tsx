@@ -1,4 +1,4 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
+import { TagItem } from "@benthecarman/mutiny-wasm";
 import { createAsync, useNavigate, useParams } from "@solidjs/router";
 import {
     ArrowDownLeft,

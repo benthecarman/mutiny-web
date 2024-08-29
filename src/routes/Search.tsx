@@ -1,6 +1,6 @@
+import { TagItem } from "@benthecarman/mutiny-wasm";
 import { Clipboard } from "@capacitor/clipboard";
 import { Capacitor } from "@capacitor/core";
-import { TagItem } from "@mutinywallet/mutiny-wasm";
 import {
     A,
     cache,

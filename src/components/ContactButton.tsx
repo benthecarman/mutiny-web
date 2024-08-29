@@ -1,4 +1,4 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
+import { TagItem } from "@benthecarman/mutiny-wasm";
 
 import { LabelCircle } from "~/components";
 import { PseudoContact } from "~/utils";

@@ -1,4 +1,4 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
+import { TagItem } from "@benthecarman/mutiny-wasm";
 
 export async function generateGradient(str: string) {
     const encoder = new TextEncoder();

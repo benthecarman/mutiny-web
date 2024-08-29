@@ -1,10 +1,10 @@
+import { TagItem, TagKind } from "@benthecarman/mutiny-wasm";
 import {
     Collapsible,
     Dialog,
     Checkbox as KCheckbox,
     Separator
 } from "@kobalte/core";
-import { TagItem, TagKind } from "@mutinywallet/mutiny-wasm";
 import { A } from "@solidjs/router";
 import { Check, ChevronDown, X } from "lucide-solid";
 import {

@@ -1,4 +1,4 @@
-import { FedimintSweepResult } from "@mutinywallet/mutiny-wasm";
+import { FedimintSweepResult } from "@benthecarman/mutiny-wasm";
 import { useNavigate } from "@solidjs/router";
 import {
     createMemo,

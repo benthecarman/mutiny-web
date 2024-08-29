@@ -1,3 +1,4 @@
+import { FederationBalance, TagItem } from "@benthecarman/mutiny-wasm";
 import { Progress } from "@kobalte/core";
 import {
     createForm,
@@ -6,7 +7,6 @@ import {
     setValue,
     SubmitHandler
 } from "@modular-forms/solid";
-import { FederationBalance, TagItem } from "@mutinywallet/mutiny-wasm";
 import { A, useNavigate, useSearchParams } from "@solidjs/router";
 import {
     ArrowLeftRight,

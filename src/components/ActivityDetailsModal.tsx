@@ -1,9 +1,9 @@
-import { Dialog } from "@kobalte/core";
 import {
     ActivityItem,
     MutinyInvoice,
     TagItem
-} from "@mutinywallet/mutiny-wasm";
+} from "@benthecarman/mutiny-wasm";
+import { Dialog } from "@kobalte/core";
 import { createAsync } from "@solidjs/router";
 import { Copy, Link, Shuffle, Zap } from "lucide-solid";
 import {

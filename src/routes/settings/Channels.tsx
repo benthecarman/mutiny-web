@@ -1,4 +1,4 @@
-import { MutinyChannel } from "@mutinywallet/mutiny-wasm";
+import { MutinyChannel } from "@benthecarman/mutiny-wasm";
 import {
     createEffect,
     createMemo,

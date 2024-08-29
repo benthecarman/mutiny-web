@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@benthecarman/mutiny-wasm':
+    specifier: 1.7.13
+    version: 1.7.13
   '@capacitor-mlkit/barcode-scanning':
     specifier: ^6.0.0
     version: 6.0.0(@capacitor/core@6.0.0)
@@ -53,9 +56,6 @@ dependencies:
   '@modular-forms/solid':
     specifier: ^0.20.0
     version: 0.20.0(solid-js@1.8.16)
-  '@mutinywallet/mutiny-wasm':
-    specifier: 1.7.13
-    version: 1.7.13
   '@solid-primitives/upload':
     specifier: ^0.0.117
     version: 0.0.117(solid-js@1.8.16)
@@ -1379,6 +1379,10 @@ packages:
       to-fast-properties: 2.0.0
     dev: true
 
+  /@benthecarman/mutiny-wasm@1.7.13:
+    resolution: {integrity: sha512-d4y7FJYOZH1YWbsRF82Bnmw9Ct9QSV/2AbUqAbC6KZPlpR8GvwcijabpYIjCMVb75Q/9S/KNqWcPctmg7wBDow==}
+    dev: false
+
   /@capacitor-mlkit/barcode-scanning@6.0.0(@capacitor/core@6.0.0):
     resolution: {integrity: sha512-zW5UKgFtUui9qFV8PBxPzX+07gntyt5owW4S/GhOt4xWGaoxDZWERaA+XJnXgmMxS/MnPIHX2mL+mhMd1A0enQ==}
     peerDependencies:
@@ -2191,10 +2195,6 @@ packages:
       solid-js: ^1.3.1
     dependencies:
       solid-js: 1.8.16
-    dev: false
-
-  /@mutinywallet/mutiny-wasm@1.7.13:
-    resolution: {integrity: sha512-DpJbJieb9RUizdvnZBVrJoXzaVRVVvRUGWnglOW6EQe12Z5inI6R4lUhanG6+GVT1dRq3Wo+uolQ+39yx60mdw==}
     dev: false
 
   /@nodelib/fs.scandir@2.1.5:

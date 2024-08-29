@@ -1,4 +1,4 @@
-import { LnUrlParams } from "@mutinywallet/mutiny-wasm";
+import { LnUrlParams } from "@benthecarman/mutiny-wasm";
 import { useNavigate } from "@solidjs/router";
 import {
     createEffect,
