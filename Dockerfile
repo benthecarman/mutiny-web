@@ -12,22 +12,23 @@ WORKDIR /app
 RUN apt update && apt install -y git python3 make build-essential
 
 # Add the ARG directives for build-time environment variables
-ARG VITE_NETWORK="bitcoin"
+ARG VITE_NETWORK="testnet4"
 ARG VITE_PROXY="/_services/proxy"
 ARG VITE_PRIMAL="https://primal-cache.mutinywallet.com/api"
-ARG VITE_ESPLORA
+ARG VITE_ESPLORA="https://mempool.space/testnet4/api"
 ARG VITE_SCORER="https://scorer.mutinywallet.com"
-ARG VITE_LSP="https://0conf.lnolymp.us"
-ARG VITE_RGS
+ARG VITE_LSP
+ARG VITE_RGS="/_services/rgs/snapshot/"
 ARG VITE_AUTH
 ARG VITE_STORAGE="/_services/vss/v2"
 ARG VITE_SELFHOSTED="true"
+ARG VITE_COMMIT_HASH="testnet4-branch"
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # IDK why but it gets mad if you don't do this
-RUN git config --global --add safe.directory /app
+#RUN git config --global --add safe.directory /app
 
 # Build the static site
 RUN pnpm run build
