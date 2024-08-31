@@ -13,7 +13,7 @@ RUN apt update && apt install -y git python3 make build-essential
 
 # Add the ARG directives for build-time environment variables
 ARG VITE_NETWORK="testnet4"
-ARG VITE_PROXY="/_services/proxy"
+ARG VITE_PROXY="https://p.mutinywallet.com"
 ARG VITE_PRIMAL="https://primal-cache.mutinywallet.com/api"
 ARG VITE_ESPLORA="https://mempool.space/testnet4/api"
 ARG VITE_SCORER="https://scorer.mutinywallet.com"
