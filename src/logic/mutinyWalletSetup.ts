@@ -143,6 +143,11 @@ export async function getSettings() {
             settings.storage = base + storage;
         }
 
+        const rgs = settings.rgs;
+        if (rgs && rgs.startsWith("/")) {
+            settings.rgs = base + rgs;
+        }
+
         const proxy = settings.proxy;
         if (proxy && proxy.startsWith("/")) {
             if (base.startsWith("http://")) {
