@@ -1,4 +1,3 @@
-import { FedimintSweepResult } from "@mutinywallet/mutiny-wasm";
 import { useNavigate } from "@solidjs/router";
 import {
     createMemo,
@@ -30,6 +29,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { FedimintSweepResult } from "~/types/wallet";
 import { eify, vibrateSuccess } from "~/utils";
 
 type SweepResultDetails = {

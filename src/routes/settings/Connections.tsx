@@ -1,4 +1,3 @@
-import { NwcProfile } from "@mutinywallet/mutiny-wasm";
 import { A, useSearchParams } from "@solidjs/router";
 import { Scan } from "lucide-solid";
 import {
@@ -34,6 +33,7 @@ import {
 import { NWCEditor } from "~/components/NWCEditor";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { NwcProfile } from "~/types/wallet";
 import { createDeepSignal, openLinkProgrammatically } from "~/utils";
 
 function Spending(props: { spent: number; remaining: number }) {

@@ -1,4 +1,3 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
 import { createAsync, useNavigate, useParams } from "@solidjs/router";
 import {
     ArrowDownLeft,
@@ -43,6 +42,7 @@ import { MiniFab } from "~/components/Fab";
 import { useI18n } from "~/i18n/context";
 import { ParsedParams, toParsedParams } from "~/logic/waila";
 import { useMegaStore } from "~/state/megaStore";
+import { TagItem } from "~/types/wallet";
 import { createDeepSignal, eify, hexpubFromNpub, timeAgo } from "~/utils";
 
 type CombinedMessagesAndActivity =

@@ -1,4 +1,3 @@
-import { FedimintSweepResult } from "@mutinywallet/mutiny-wasm";
 import { createAsync, useNavigate, useSearchParams } from "@solidjs/router";
 import { ArrowDown, Users } from "lucide-solid";
 import { createMemo, createSignal, Match, Suspense, Switch } from "solid-js";
@@ -21,6 +20,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { FedimintSweepResult } from "~/types/wallet";
 import { eify, vibrateSuccess } from "~/utils";
 
 type TransferResultDetails = {

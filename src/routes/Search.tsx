@@ -1,6 +1,5 @@
 import { Clipboard } from "@capacitor/clipboard";
 import { Capacitor } from "@capacitor/core";
-import { TagItem } from "@mutinywallet/mutiny-wasm";
 import {
     A,
     cache,
@@ -39,6 +38,7 @@ import {
 } from "~/components/layout";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { TagItem } from "~/types/wallet";
 import {
     actuallyFetchNostrProfile,
     debounce,

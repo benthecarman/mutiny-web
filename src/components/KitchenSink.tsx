@@ -1,6 +1,5 @@
 import { Collapsible, TextField } from "@kobalte/core";
 import { createForm, url } from "@modular-forms/solid";
-import { MutinyChannel, MutinyPeer } from "@mutinywallet/mutiny-wasm";
 import {
     createResource,
     createSignal,
@@ -34,6 +33,7 @@ import {
     setSettings
 } from "~/logic/mutinyWalletSetup";
 import { useMegaStore } from "~/state/megaStore";
+import { MutinyChannel, MutinyPeer } from "~/types/wallet";
 import { eify, mempoolTxUrl } from "~/utils";
 
 // TODO: hopefully I don't have to maintain this type forever but I don't know how to pass it around otherwise

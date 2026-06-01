@@ -4,7 +4,6 @@ import {
     Checkbox as KCheckbox,
     Separator
 } from "@kobalte/core";
-import { TagItem, TagKind } from "@mutinywallet/mutiny-wasm";
 import { A } from "@solidjs/router";
 import { Check, ChevronDown, X } from "lucide-solid";
 import {
@@ -26,6 +25,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { TagItem, TagKind } from "~/types/wallet";
 import { generateGradient } from "~/utils";
 
 export const SmallHeader: ParentComponent<{ class?: string }> = (props) => {

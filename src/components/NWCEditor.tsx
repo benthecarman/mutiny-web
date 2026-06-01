@@ -5,7 +5,6 @@ import {
     setValue,
     SubmitHandler
 } from "@modular-forms/solid";
-import { BudgetPeriod, NwcProfile, TagItem } from "@mutinywallet/mutiny-wasm";
 import { createAsync } from "@solidjs/router";
 import {
     createEffect,
@@ -34,6 +33,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { BudgetPeriod, NwcProfile, TagItem } from "~/types/wallet";
 import { fetchNostrProfile } from "~/utils";
 
 type BudgetInterval = "Day" | "Week" | "Month" | "Year";

@@ -22,7 +22,7 @@ const SETTINGS_KEYS = [
     {
         name: "network",
         storageKey: "USER_SETTINGS_network",
-        default: import.meta.env.VITE_NETWORK
+        default: import.meta.env.VITE_NETWORK || "signet"
     },
     {
         name: "proxy",
@@ -154,9 +154,9 @@ export async function getSettings() {
         }
     }
 
-    if (!settings.network || !settings.proxy) {
+    if (!settings.network) {
         throw new Error(
-            "Missing a default setting for network or proxy. Check your .env file to make sure it looks like .env.sample"
+            "Missing a default network setting. Set VITE_NETWORK in your .env file."
         );
     }
 

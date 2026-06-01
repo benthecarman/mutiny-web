@@ -21,7 +21,7 @@ const pwaOptions: Partial<VitePWAOptions> = {
     workbox: {
         navigateFallback: "/index.html",
         globPatterns: ["**/*.{js,css,html,svg,png,gif,wasm}"],
-        // mutiny_wasm is 10mb, so we'll do 25mb to be safe
+        // Bark's wasm is several MB, so keep enough room for the wallet backend.
         maximumFileSizeToCacheInBytes: 25 * 1024 * 1024
     },
     includeAssets: ["favicon.ico", "robots.txt"],
@@ -38,7 +38,7 @@ export default defineConfig({
     server: {
         port: 3420,
         fs: {
-            // Allow serving files from one level up (so that if mutiny-node is a sibling folder we can use it locally)
+            // Allow serving files from one level up for local package development.
             allow: [".."]
         }
     },
@@ -74,8 +74,8 @@ export default defineConfig({
             "@capacitor/status-bar",
             "@capacitor/toast"
         ],
-        // This is necessary because otherwise `vite dev` can't find the wasm
-        exclude: ["@mutinywallet/mutiny-wasm"],
+        // Bark provides a wasm module that Vite should leave as a package boundary.
+        exclude: ["@secondts/bark"],
         esbuildOptions: {
             target: "esnext"
         }

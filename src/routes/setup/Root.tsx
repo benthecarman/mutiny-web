@@ -17,23 +17,8 @@ export function Setup() {
     async function handleNewWallet() {
         try {
             setIsCreatingNewWallet(true);
-            const profileSetupStage = localStorage.getItem(
-                "profile_setup_stage"
-            );
-
-            // Check for nip07 browser extension. If it exists, we can skip the profile setup
-            const hasNip07 = Object.prototype.hasOwnProperty.call(
-                window,
-                "nostr"
-            );
-
             await actions.setup(undefined);
-
-            if (!profileSetupStage && !hasNip07) {
-                navigate("/newprofile");
-            } else {
-                navigate("/");
-            }
+            navigate("/");
         } catch (e) {
             console.error(e);
             throw e;

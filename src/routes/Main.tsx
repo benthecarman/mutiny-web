@@ -11,8 +11,7 @@ import {
     LabelCircle,
     LoadingIndicator,
     NavBar,
-    ReloadPrompt,
-    SocialActionRow
+    ReloadPrompt
 } from "~/components";
 import { Fab } from "~/components/Fab";
 import { useMegaStore } from "~/state/megaStore";
@@ -36,7 +35,7 @@ export function WalletHeader(props: { loading: boolean }) {
                         contact
                         label={false}
                         image_url={undefined}
-                        onClick={() => navigate("/profile")}
+                        onClick={() => navigate("/settings")}
                     />
                 }
             >
@@ -44,7 +43,7 @@ export function WalletHeader(props: { loading: boolean }) {
                     contact
                     label={false}
                     image_url={profile()?.picture}
-                    onClick={() => navigate("/profile")}
+                    onClick={() => navigate("/settings")}
                 />
             </Suspense>
             <HomeBalance />
@@ -84,20 +83,13 @@ export function Main() {
             <Show when={state.load_stage === "done"}>
                 <WalletHeader loading={false} />
 
-                <Show when={!state.wallet_loading && !state.safe_mode}>
-                    <SocialActionRow
-                        onScan={() => navigate("/scanner")}
-                        onSearch={() => navigate("/search")}
-                    />
-                </Show>
-
                 {/* <hr class="border-t border-m-grey-700" /> */}
                 <ReloadPrompt />
                 <HomeSubnav />
             </Show>
 
             <Fab
-                onSearch={() => navigate("/search")}
+                onSearch={() => navigate("/send")}
                 onScan={() => navigate("/scanner")}
             />
 

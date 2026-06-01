@@ -43,31 +43,9 @@ git checkout master && git pull && git checkout prod && git pull && git merge --
 
 Before committing make sure to run `pnpm run pre-commit`. This will typecheck, lint, and format everything so CI won't hassle you. (Shortcut: `just pre`).
 
-### Local
+### Bark backend
 
-If you want to develop against a local version of [the node manager](https://github.com/MutinyWallet/mutiny-node), you may want to `pnpm link` it.
-
-Due to how [Vite's dev server works](https://vitejs.dev/config/server-options.html#server-fs-allow), the linked `mutiny-node` project folder should be a sibling of this `mutiny-web` folder. Alternatively you can change the allow path in `vite.config.ts`.
-
-In your `mutiny-node` local repo:
-
-```
-just link
-```
-
-(on a Mac you might need to prefix `just link` with these flags: `AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang`)
-
-Now in this repo, link them.
-
-```
-just local
-```
-
-To revert back and use the remote version of mutiny-wasm:
-
-```
-just remote
-```
+This branch uses `@secondts/bark` for wallet functionality. Signet defaults to Second's public Bark endpoints. To override them, set `VITE_BARK_SERVER` or `VITE_ARK_SERVER` in `.env.local`.
 
 ## Android
 

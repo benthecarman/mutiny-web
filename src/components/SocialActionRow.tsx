@@ -1,10 +1,10 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
 import { cache, createAsync, useNavigate } from "@solidjs/router";
 import { Scan, Search } from "lucide-solid";
 import { For, Suspense } from "solid-js";
 
 import { Circle, LabelCircle, showToast } from "~/components";
 import { useMegaStore } from "~/state/megaStore";
+import { TagItem } from "~/types/wallet";
 
 export function SocialActionRow(props: {
     onSearch: () => void;

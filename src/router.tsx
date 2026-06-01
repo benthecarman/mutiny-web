@@ -19,48 +19,16 @@ import {
     SetupErrorDisplay,
     Toaster
 } from "~/components";
+import { Feedback, Main, NotFound, Receive, Scanner, Send } from "~/routes";
 import {
-    Chat,
-    EditProfile,
-    Feedback,
-    Main,
-    NotFound,
-    Profile,
-    Receive,
-    Redeem,
-    RequestRoute,
-    Scanner,
-    Search,
-    Send,
-    Swap,
-    SwapLightning,
-    Transfer
-} from "~/routes";
-import {
-    Admin,
     Backup,
-    Channels,
-    Connections,
     Currency,
-    EmergencyKit,
-    Encrypt,
-    ImportProfileSettings,
     Language,
-    LightningAddress,
-    ManageFederations,
-    NostrKeys,
-    Plus,
     Restore,
     Servers,
     Settings
 } from "~/routes/settings";
-import {
-    AddFederation,
-    ImportProfile,
-    NewProfile,
-    Setup,
-    SetupRestore
-} from "~/routes/setup";
+import { Setup, SetupRestore } from "~/routes/setup";
 import { Provider as MegaStoreProvider, useMegaStore } from "~/state/megaStore";
 
 const setStatusBarStyleDark = async () => {
@@ -172,42 +140,17 @@ export function Router() {
             <Route path="/" component={Main} />
             <Route path="/setup" component={Setup} />
             <Route path="/setup/restore" component={SetupRestore} />
-            <Route path="/addfederation" component={AddFederation} />
-            <Route path="/newprofile" component={NewProfile} />
-            <Route path="/editprofile" component={EditProfile} />
-            <Route path="/importprofile" component={ImportProfile} />
-            <Route path="/profile" component={Profile} />
-            <Route path="/chat/:id" component={Chat} />
             <Route path="/feedback" component={Feedback} />
             <Route path="/receive" component={Receive} />
-            <Route path="/redeem" component={Redeem} />
-            <Route path="/request/:id" component={RequestRoute} />
             <Route path="/scanner" component={Scanner} />
             <Route path="/send" component={Send} />
-            <Route path="/swap" component={Swap} />
-            <Route path="/swaplightning" component={SwapLightning} />
-            <Route path="/transfer" component={Transfer} />
-            <Route path="/search" component={Search} />
             <Route path="/settings">
                 <Route path="/" component={Settings} />
-                <Route path="/admin" component={Admin} />
                 <Route path="/backup" component={Backup} />
-                <Route path="/channels" component={Channels} />
-                <Route path="/connections" component={Connections} />
                 <Route path="/currency" component={Currency} />
                 <Route path="/language" component={Language} />
-                <Route path="/emergencykit" component={EmergencyKit} />
-                <Route path="/encrypt" component={Encrypt} />
-                <Route path="/plus" component={Plus} />
                 <Route path="/restore" component={Restore} />
                 <Route path="/servers" component={Servers} />
-                <Route path="/nostrkeys" component={NostrKeys} />
-                <Route
-                    path="/importprofile"
-                    component={ImportProfileSettings}
-                />
-                <Route path="/federations" component={ManageFederations} />
-                <Route path="/lightningaddress" component={LightningAddress} />
             </Route>
             <Route path="/*all" component={NotFound} />
         </SolidRouter>

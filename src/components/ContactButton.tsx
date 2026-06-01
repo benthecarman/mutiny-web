@@ -1,6 +1,5 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
-
 import { LabelCircle } from "~/components";
+import { TagItem } from "~/types/wallet";
 import { PseudoContact } from "~/utils";
 
 export function ContactButton(props: {

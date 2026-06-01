@@ -1,4 +1,3 @@
-import { MutinyInvoice } from "@mutinywallet/mutiny-wasm";
 import { useNavigate } from "@solidjs/router";
 import { CircleHelp, Link, Users, Zap } from "lucide-solid";
 import {
@@ -42,6 +41,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { MutinyInvoice } from "~/types/wallet";
 import { eify, objectToSearchParams, vibrateSuccess } from "~/utils";
 
 export type OnChainTx = {
@@ -549,7 +549,7 @@ export function Receive() {
                             >
                                 <Fee amountSats={lspFee()} />
                             </Show>
-                            {/*TODO: Confirmation time estimate still not possible needs to be implemented in mutiny-node first*/}
+                            {/*TODO: Confirmation time estimate still needs backend support.*/}
                             <Show when={receiveState() === "paid"}>
                                 <p
                                     class="cursor-pointer underline"

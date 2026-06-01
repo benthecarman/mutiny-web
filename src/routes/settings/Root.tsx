@@ -63,7 +63,7 @@ function SettingsLinkList(props: {
 
 export function Settings() {
     const i18n = useI18n();
-    const [state, _actions] = useMegaStore();
+    const [_state, _actions] = useMegaStore();
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const RELEASE_VERSION = import.meta.env.__RELEASE_VERSION__;
@@ -80,10 +80,6 @@ export function Settings() {
                     header={i18n.t("settings.general")}
                     links={[
                         {
-                            href: "/settings/channels",
-                            text: i18n.t("settings.channels.title")
-                        },
-                        {
                             href: "/settings/backup",
                             text: i18n.t("settings.backup.title"),
                             accent: "green"
@@ -93,15 +89,6 @@ export function Settings() {
                             text: i18n.t("settings.restore.title"),
                             accent: "red"
                         },
-                        {
-                            href: "/settings/encrypt",
-                            text: i18n.t("settings.encrypt.title"),
-                            disabled: !state.has_backed_up,
-                            caption: !state.has_backed_up
-                                ? i18n.t("settings.encrypt.caption")
-                                : undefined
-                        },
-
                         {
                             href: "/settings/servers",
                             text: i18n.t("settings.servers.title"),
@@ -121,32 +108,6 @@ export function Settings() {
                             href: "/settings/language",
                             text: i18n.t("settings.language.title"),
                             caption: i18n.t("settings.language.caption")
-                        }
-                    ]}
-                />
-                <SettingsLinkList
-                    header={i18n.t("settings.social")}
-                    links={[
-                        {
-                            href: "/settings/nostrkeys",
-                            text: i18n.t("settings.nostr_keys.title"),
-                            caption: i18n.t("settings.nostr_keys.caption")
-                        }
-                    ]}
-                />
-                <SettingsLinkList
-                    header={i18n.t("settings.debug_tools")}
-                    links={[
-                        {
-                            href: "/settings/emergencykit",
-                            text: i18n.t("settings.emergency_kit.title"),
-                            caption: i18n.t("settings.emergency_kit.caption")
-                        },
-                        {
-                            href: "/settings/admin",
-                            text: i18n.t("settings.admin.title"),
-                            caption: i18n.t("settings.admin.caption"),
-                            accent: "red"
                         }
                     ]}
                 />

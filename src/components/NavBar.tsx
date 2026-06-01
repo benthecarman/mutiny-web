@@ -4,7 +4,6 @@ import {
     ArrowUpRight,
     Scan,
     Settings,
-    User,
     Wallet
 } from "lucide-solid";
 import { JSX } from "solid-js";
@@ -50,7 +49,7 @@ export function NavBar(props: { activeTab: ActiveTab }) {
                     active={props.activeTab === "home"}
                 />
                 <NavBarItem
-                    href="/search"
+                    href="/send"
                     icon={<ArrowUpRight class="h-8 w-8" />}
                     active={props.activeTab === "send"}
                 />
@@ -63,11 +62,6 @@ export function NavBar(props: { activeTab: ActiveTab }) {
                     href="/scanner"
                     icon={<Scan class="h-8 w-8" />}
                     active={false}
-                />
-                <NavBarItem
-                    href="/profile"
-                    icon={<User class="h-8 w-8" />}
-                    active={props.activeTab === "profile"}
                 />
                 <NavBarItem
                     href="/settings"

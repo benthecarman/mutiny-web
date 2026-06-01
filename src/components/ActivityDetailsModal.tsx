@@ -1,9 +1,4 @@
 import { Dialog } from "@kobalte/core";
-import {
-    ActivityItem,
-    MutinyInvoice,
-    TagItem
-} from "@mutinywallet/mutiny-wasm";
 import { createAsync } from "@solidjs/router";
 import { Copy, Link, Shuffle, Zap } from "lucide-solid";
 import {
@@ -32,6 +27,7 @@ import {
 import { useI18n } from "~/i18n/context";
 import { BalanceBar } from "~/routes/settings/Channels";
 import { useMegaStore } from "~/state/megaStore";
+import { ActivityItem, MutinyInvoice, TagItem } from "~/types/wallet";
 import { mempoolTxUrl, prettyPrintTime, useCopy } from "~/utils";
 
 interface ChannelClosure {

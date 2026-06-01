@@ -1,5 +1,4 @@
 import { createForm, required } from "@modular-forms/solid";
-import { MutinyChannel } from "@mutinywallet/mutiny-wasm";
 import { useNavigate } from "@solidjs/router";
 import {
     createEffect,
@@ -36,6 +35,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { MutinyChannel } from "~/types/wallet";
 import { eify, vibrateSuccess } from "~/utils";
 
 const CHANNEL_FEE_ESTIMATE_ADDRESS =

@@ -1,6 +1,5 @@
-import { TagItem } from "@mutinywallet/mutiny-wasm";
 import { cache, createAsync, useNavigate } from "@solidjs/router";
-import { Plus, Save, Search, Shuffle } from "lucide-solid";
+import { Plus, Save, Shuffle } from "lucide-solid";
 import {
     createEffect,
     createMemo,
@@ -21,12 +20,12 @@ import {
     FederationPopup,
     LoadingShimmer,
     NiceP,
-    ShutdownPopup,
     SimpleDialog
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { PrivacyLevel } from "~/routes";
 import { useMegaStore, WalletWorker } from "~/state/megaStore";
+import { TagItem } from "~/types/wallet";
 import {
     actuallyFetchNostrProfile,
     createDeepSignal,
@@ -429,7 +428,6 @@ export function CombinedActivity() {
                 <Show when={state.expiration_warning}>
                     <FederationPopup />
                 </Show>
-                <ShutdownPopup />
                 <Show when={!state.has_backed_up}>
                     <ButtonCard
                         red
@@ -459,12 +457,6 @@ export function CombinedActivity() {
                             <div class="flex items-center gap-2">
                                 <Plus class="inline-block text-m-red" />
                                 <NiceP>{i18n.t("home.receive")}</NiceP>
-                            </div>
-                        </ButtonCard>
-                        <ButtonCard onClick={() => navigate("/search")}>
-                            <div class="flex items-center gap-2">
-                                <Search class="inline-block text-m-red" />
-                                <NiceP>{i18n.t("home.find")}</NiceP>
                             </div>
                         </ButtonCard>
                     </Match>

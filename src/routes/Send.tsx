@@ -1,4 +1,3 @@
-import { MutinyInvoice, TagItem } from "@mutinywallet/mutiny-wasm";
 import { useLocation, useNavigate, useSearchParams } from "@solidjs/router";
 import { Eye, EyeOff, Link, X, Zap } from "lucide-solid";
 import {
@@ -45,6 +44,7 @@ import {
 import { useI18n } from "~/i18n/context";
 import { ParsedParams } from "~/logic/waila";
 import { useMegaStore } from "~/state/megaStore";
+import { MutinyInvoice, TagItem } from "~/types/wallet";
 import { eify, vibrateSuccess } from "~/utils";
 
 export type SendSource = "lightning" | "onchain";
@@ -164,6 +164,7 @@ export function Send() {
     const i18n = useI18n();
 
     const [amountInput, setAmountInput] = createSignal("");
+    const [destinationInput, setDestinationInput] = createSignal("");
     const [whatForInput, setWhatForInput] = createSignal("");
 
     // These can be derived from the destination or set by the user
@@ -221,14 +222,17 @@ export function Send() {
 
     // TODO: can I dedupe this from the search page?
     async function parsePaste(text: string) {
+        if (!text.trim()) return;
+        setParsingDestination(true);
         await actions.handleIncomingString(
             text,
             (error) => {
                 showToast(error);
+                setParsingDestination(false);
             },
             (result) => {
-                actions.setScanResult(result);
-                navigate("/send", { state: { previous: "/search" } });
+                handleDestination(result);
+                setParsingDestination(false);
             }
         );
     }
@@ -346,6 +350,15 @@ export function Send() {
 
     const [decodingLnUrl, setDecodingLnUrl] = createSignal(false);
 
+    const hasDestination = createMemo(
+        () =>
+            !!invoice() ||
+            !!address() ||
+            !!nodePubkey() ||
+            !!lnurlp() ||
+            !!lnAddress()
+    );
+
     function handleDestination(source: ParsedParams | undefined) {
         if (!source) return;
         setParsingDestination(true);
@@ -386,7 +399,7 @@ export function Send() {
             .then((invoice) => {
                 if (!invoice) return;
                 if (invoice.expire <= Date.now() / 1000) {
-                    navigate("/search");
+                    navigate("/send");
                     throw new Error(i18n.t("send.error_expired"));
                 }
 
@@ -435,8 +448,9 @@ export function Send() {
                 }
                 // TODO: this is a bit of a hack, ideally we do more nav from the megastore
                 if (lnurlParams.tag === "withdrawRequest") {
-                    actions.setScanResult(source);
-                    navigate("/redeem");
+                    showToast(
+                        new Error("LNURL withdraw is not supported by Bark.")
+                    );
                 }
             })
             .catch((e) => showToast(eify(e)));
@@ -596,6 +610,7 @@ export function Send() {
             unparsedAmount() ||
             parsingDestination() ||
             sending() ||
+            !hasDestination() ||
             amountSats() == 0n ||
             amountSats() === undefined ||
             (source() === "onchain" && amountSats() < 546n) ||
@@ -772,149 +787,201 @@ export function Send() {
                     </Switch>
                 </SuccessModal>
                 <div class="flex flex-1 flex-col justify-between gap-2">
-                    <Suspense fallback={<LoadingShimmer />}>
-                        <DestinationShower
-                            source={source()}
-                            description={description()}
-                            invoice={invoice()}
-                            address={address()}
-                            nodePubkey={nodePubkey()}
-                            lnurl={lnurlp()}
-                            lightning_address={lnAddress()}
-                            contact={contact()}
-                        />
-                    </Suspense>
-                    <div class="flex-1" />
-                    {/* Need both these versions so that we make sure to get the right initial amount on load */}
-                    <Show when={isAmtEditable()}>
-                        <AmountEditable
-                            initialAmountSats={amountSats()}
-                            setAmountSats={setAmountInput}
-                            onSubmit={() =>
-                                sendButtonDisabled() ? undefined : handleSend()
-                            }
-                            activeMethod={activeMethod()}
-                            methods={sendMethods()}
-                            setChosenMethod={setSourceFromMethod}
-                        />
-                    </Show>
-                    <Show when={payjoinEnabled() && source() === "onchain"}>
-                        <InfoBox accent="green">
-                            <p>{i18n.t("send.payjoin_send")}</p>
-                        </InfoBox>
-                    </Show>
-                    <Show when={!isAmtEditable()}>
-                        <AmountEditable
-                            initialAmountSats={amountSats()}
-                            setAmountSats={setAmountInput}
-                            frozenAmount={true}
-                            onSubmit={() =>
-                                sendButtonDisabled() ? undefined : handleSend()
-                            }
-                            activeMethod={activeMethod()}
-                            methods={sendMethods()}
-                            setChosenMethod={setSourceFromMethod}
-                        />
-                    </Show>
-                    <Suspense>
-                        <Show when={feeEstimate.latest}>
-                            <FeeDisplay
-                                amountSats={amountSats().toString()}
-                                fee={feeEstimate.latest!.toString()}
-                                maxAmountSats={maxAmountSats()}
+                    <Show
+                        when={hasDestination()}
+                        fallback={
+                            <VStack>
+                                <div class="flex-1" />
+                                <form
+                                    class="flex flex-col gap-3"
+                                    onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        await parsePaste(destinationInput());
+                                    }}
+                                >
+                                    <SimpleInput
+                                        type="text"
+                                        placeholder="Lightning invoice, bitcoin address, or payment request"
+                                        value={destinationInput()}
+                                        onInput={(e) =>
+                                            setDestinationInput(
+                                                e.currentTarget.value
+                                            )
+                                        }
+                                    />
+                                    <Button
+                                        intent="blue"
+                                        loading={parsingDestination()}
+                                        disabled={!destinationInput().trim()}
+                                        onClick={() =>
+                                            parsePaste(destinationInput())
+                                        }
+                                    >
+                                        Continue
+                                    </Button>
+                                </form>
+                                <div class="flex-1" />
+                            </VStack>
+                        }
+                    >
+                        <Suspense fallback={<LoadingShimmer />}>
+                            <DestinationShower
+                                source={source()}
+                                description={description()}
+                                invoice={invoice()}
+                                address={address()}
+                                nodePubkey={nodePubkey()}
+                                lnurl={lnurlp()}
+                                lightning_address={lnAddress()}
+                                contact={contact()}
+                            />
+                        </Suspense>
+                        <div class="flex-1" />
+                        {/* Need both these versions so that we make sure to get the right initial amount on load */}
+                        <Show when={isAmtEditable()}>
+                            <AmountEditable
+                                initialAmountSats={amountSats()}
+                                setAmountSats={setAmountInput}
+                                onSubmit={() =>
+                                    sendButtonDisabled()
+                                        ? undefined
+                                        : handleSend()
+                                }
+                                activeMethod={activeMethod()}
+                                methods={sendMethods()}
+                                setChosenMethod={setSourceFromMethod}
                             />
                         </Show>
-                    </Suspense>
-                    <Show when={isHodlInvoice()}>
-                        <InfoBox accent="red">
-                            <p>{i18n.t("send.hodl_invoice_warning")}</p>
-                        </InfoBox>
-                    </Show>
-                    <Show when={error() && !decodingLnUrl()}>
-                        <InfoBox accent="red">
-                            <p>{error()}</p>
-                        </InfoBox>
-                    </Show>
-                    <div class="flex-1" />
-
-                    <VStack>
-                        <Suspense>
-                            <div class="flex w-full">
-                                <SharpButton
-                                    onClick={toggleVisibility}
-                                    // If there's no npub, or if there's an invoice, don't let switch to zap
-                                    disabled={!contact()?.npub || !!invoice()}
-                                >
-                                    <div class="flex items-center gap-2">
-                                        <Switch>
-                                            <Match
-                                                when={
-                                                    visibility() ===
-                                                    "Not Available"
-                                                }
-                                            >
-                                                <EyeOff class="h-4 w-4" />
-                                                <span>
-                                                    {i18n.t("send.private")}
-                                                </span>
-                                            </Match>
-                                            <Match
-                                                when={
-                                                    visibility() === "Private"
-                                                }
-                                            >
-                                                <Zap class="h-4 w-4" />
-                                                <EyeOff class="h-4 w-4" />
-                                                <span>
-                                                    {i18n.t("send.privatezap")}
-                                                </span>
-                                            </Match>
-                                            <Match
-                                                when={visibility() === "Public"}
-                                            >
-                                                <Zap class="h-4 w-4" />
-                                                <Eye class="h-4 w-4" />
-                                                <span>
-                                                    {i18n.t("send.publiczap")}
-                                                </span>
-                                            </Match>
-                                        </Switch>
-                                    </div>
-                                </SharpButton>
-                            </div>
-                        </Suspense>
-                        <form
-                            onSubmit={async (e) => {
-                                e.preventDefault();
-                                if (!sendButtonDisabled()) {
-                                    await handleSend();
+                        <Show when={payjoinEnabled() && source() === "onchain"}>
+                            <InfoBox accent="green">
+                                <p>{i18n.t("send.payjoin_send")}</p>
+                            </InfoBox>
+                        </Show>
+                        <Show when={!isAmtEditable()}>
+                            <AmountEditable
+                                initialAmountSats={amountSats()}
+                                setAmountSats={setAmountInput}
+                                frozenAmount={true}
+                                onSubmit={() =>
+                                    sendButtonDisabled()
+                                        ? undefined
+                                        : handleSend()
                                 }
-                            }}
-                        >
-                            <SimpleInput
-                                type="text"
-                                placeholder={
-                                    visibility() === "Not Available"
-                                        ? i18n.t("send.what_for")
-                                        : i18n.t("send.zap_note")
-                                }
-                                onInput={(e) =>
-                                    setWhatForInput(e.currentTarget.value)
-                                }
-                                value={whatForInput()}
+                                activeMethod={activeMethod()}
+                                methods={sendMethods()}
+                                setChosenMethod={setSourceFromMethod}
                             />
-                        </form>
-                        <Button
-                            disabled={sendButtonDisabled()}
-                            intent="blue"
-                            onClick={handleSend}
-                            loading={sending()}
-                        >
-                            {sending()
-                                ? i18n.t("send.sending")
-                                : i18n.t("send.confirm_send")}
-                        </Button>
-                    </VStack>
+                        </Show>
+                        <Suspense>
+                            <Show when={feeEstimate.latest}>
+                                <FeeDisplay
+                                    amountSats={amountSats().toString()}
+                                    fee={feeEstimate.latest!.toString()}
+                                    maxAmountSats={maxAmountSats()}
+                                />
+                            </Show>
+                        </Suspense>
+                        <Show when={isHodlInvoice()}>
+                            <InfoBox accent="red">
+                                <p>{i18n.t("send.hodl_invoice_warning")}</p>
+                            </InfoBox>
+                        </Show>
+                        <Show when={error() && !decodingLnUrl()}>
+                            <InfoBox accent="red">
+                                <p>{error()}</p>
+                            </InfoBox>
+                        </Show>
+                        <div class="flex-1" />
+
+                        <VStack>
+                            <Suspense>
+                                <div class="flex w-full">
+                                    <SharpButton
+                                        onClick={toggleVisibility}
+                                        // If there's no npub, or if there's an invoice, don't let switch to zap
+                                        disabled={
+                                            !contact()?.npub || !!invoice()
+                                        }
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <Switch>
+                                                <Match
+                                                    when={
+                                                        visibility() ===
+                                                        "Not Available"
+                                                    }
+                                                >
+                                                    <EyeOff class="h-4 w-4" />
+                                                    <span>
+                                                        {i18n.t("send.private")}
+                                                    </span>
+                                                </Match>
+                                                <Match
+                                                    when={
+                                                        visibility() ===
+                                                        "Private"
+                                                    }
+                                                >
+                                                    <Zap class="h-4 w-4" />
+                                                    <EyeOff class="h-4 w-4" />
+                                                    <span>
+                                                        {i18n.t(
+                                                            "send.privatezap"
+                                                        )}
+                                                    </span>
+                                                </Match>
+                                                <Match
+                                                    when={
+                                                        visibility() ===
+                                                        "Public"
+                                                    }
+                                                >
+                                                    <Zap class="h-4 w-4" />
+                                                    <Eye class="h-4 w-4" />
+                                                    <span>
+                                                        {i18n.t(
+                                                            "send.publiczap"
+                                                        )}
+                                                    </span>
+                                                </Match>
+                                            </Switch>
+                                        </div>
+                                    </SharpButton>
+                                </div>
+                            </Suspense>
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    if (!sendButtonDisabled()) {
+                                        await handleSend();
+                                    }
+                                }}
+                            >
+                                <SimpleInput
+                                    type="text"
+                                    placeholder={
+                                        visibility() === "Not Available"
+                                            ? i18n.t("send.what_for")
+                                            : i18n.t("send.zap_note")
+                                    }
+                                    onInput={(e) =>
+                                        setWhatForInput(e.currentTarget.value)
+                                    }
+                                    value={whatForInput()}
+                                />
+                            </form>
+                            <Button
+                                disabled={sendButtonDisabled()}
+                                intent="blue"
+                                onClick={handleSend}
+                                loading={sending()}
+                            >
+                                {sending()
+                                    ? i18n.t("send.sending")
+                                    : i18n.t("send.confirm_send")}
+                            </Button>
+                        </VStack>
+                    </Show>
                 </div>
             </DefaultMain>
             <NavBar activeTab="send" />

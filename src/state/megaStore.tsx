@@ -1,5 +1,4 @@
 // Inspired by https://github.com/solidjs/solid-realworld/blob/main/src/store/index.js
-import { MutinyBalance, TagItem } from "@mutinywallet/mutiny-wasm";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { Remote } from "comlink";
@@ -22,6 +21,7 @@ import {
 } from "~/logic/mutinyWalletSetup";
 import { ParsedParams, toParsedParams } from "~/logic/waila";
 import { MutinyFederationIdentity } from "~/routes/settings";
+import { MutinyBalance, TagItem } from "~/types/wallet";
 import {
     BTC_OPTION,
     Currency,

@@ -6,7 +6,6 @@ import {
     setValue,
     SubmitHandler
 } from "@modular-forms/solid";
-import { FederationBalance, TagItem } from "@mutinywallet/mutiny-wasm";
 import { A, useNavigate, useSearchParams } from "@solidjs/router";
 import {
     ArrowLeftRight,
@@ -55,6 +54,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { FederationBalance, TagItem } from "~/types/wallet";
 import { eify, timeAgo, timeout } from "~/utils";
 
 type FederationForm = {

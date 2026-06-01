@@ -1,4 +1,3 @@
-import { LnUrlParams } from "@mutinywallet/mutiny-wasm";
 import { useNavigate } from "@solidjs/router";
 import {
     createEffect,
@@ -31,6 +30,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { LnUrlParams } from "~/types/wallet";
 import { eify, vibrateSuccess } from "~/utils";
 
 type RedeemState = "edit" | "paid";

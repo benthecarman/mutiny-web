@@ -1,4 +1,3 @@
-import { MutinyChannel } from "@mutinywallet/mutiny-wasm";
 import {
     createEffect,
     createMemo,
@@ -31,6 +30,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { MutinyChannel } from "~/types/wallet";
 import { createDeepSignal, eify, mempoolTxUrl } from "~/utils";
 
 export function BalanceBar(props: {
