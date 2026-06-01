@@ -26,6 +26,11 @@ function KindIndicator(props: { kind: ReceiveFlavor | "gift" | "lnAddress" }) {
                     <Zap class="h-4 w-4" />
                 </Match>
 
+                <Match when={props.kind === "ark"}>
+                    <h3 class="font-semibold">Ark</h3>
+                    <Link class="h-4 w-4" />
+                </Match>
+
                 <Match when={props.kind === "lnAddress"}>
                     <h3 class="font-semibold">
                         {i18n.t("contacts.ln_address")}

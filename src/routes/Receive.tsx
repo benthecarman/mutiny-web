@@ -69,9 +69,9 @@ export type OnChainTx = {
     };
 };
 
-export type ReceiveFlavor = "lightning" | "onchain";
+export type ReceiveFlavor = "lightning" | "ark" | "onchain";
 type ReceiveState = "edit" | "show" | "paid";
-type PaidState = "lightning_paid" | "onchain_paid";
+type PaidState = "lightning_paid" | "ark_paid" | "onchain_paid";
 
 function FeeWarning(props: { fee: bigint; flavor: ReceiveFlavor }) {
     const i18n = useI18n();
@@ -101,6 +101,11 @@ function FlavorChooser(props: {
             caption: i18n.t("receive.lightning_caption")
         },
         {
+            value: "ark",
+            label: "Ark",
+            caption: "Receive to a Bark address"
+        },
+        {
             value: "onchain",
             label: i18n.t("receive.onchain_label"),
             caption: i18n.t("receive.onchain_caption")
@@ -114,7 +119,11 @@ function FlavorChooser(props: {
                 ) : (
                     <Link class="h-4 w-4" />
                 )}
-                {props.flavor === "lightning" ? "Lightning" : "On-chain"}
+                {props.flavor === "lightning"
+                    ? "Lightning"
+                    : props.flavor === "ark"
+                      ? "Ark"
+                      : "On-chain"}
             </SharpButton>
             <SimpleDialog
                 title={i18n.t("receive.choose_payment_format")}
@@ -169,11 +178,13 @@ export function Receive() {
     // We use these for displaying the QR
     const [receiveStrings, setReceiveStrings] = createSignal<{
         lightning?: string;
+        ark?: string;
         onchain?: string;
     }>();
     // We use these for checking the payment status
     const [rawReceiveStrings, setRawReceiveStrings] = createSignal<{
         bolt11?: string;
+        arkAddress?: string;
         address?: string;
     }>();
 
@@ -219,7 +230,7 @@ export function Receive() {
                 : paymentInvoice()
                   ? paymentInvoice()?.payment_hash
                   : undefined;
-        const kind = paidState() === "onchain_paid" ? "OnChain" : "Lightning";
+        const kind = paidState() === "lightning_paid" ? "Lightning" : "OnChain";
 
         console.log("Opening details modal: ", paymentTxId, kind);
 
@@ -275,6 +286,18 @@ export function Receive() {
         }
     }
 
+    async function getArkReceiveString() {
+        try {
+            const raw = await sw.get_new_ark_address(receiveTags());
+            const arkAddress = raw?.address;
+
+            setRawReceiveStrings({ arkAddress });
+            return arkAddress;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     async function onSubmit(e: Event) {
         e.preventDefault();
 
@@ -289,12 +312,21 @@ export function Receive() {
                 setReceiveStrings({ lightning });
             }
 
+            if (flavor() === "ark") {
+                const ark = await getArkReceiveString();
+                setReceiveStrings({ ark });
+            }
+
             if (flavor() === "onchain") {
                 const onchain = await getOnchainReceiveString(amount());
                 setReceiveStrings({ onchain });
             }
 
-            if (!receiveStrings()?.lightning && !receiveStrings()?.onchain) {
+            if (
+                !receiveStrings()?.lightning &&
+                !receiveStrings()?.ark &&
+                !receiveStrings()?.onchain
+            ) {
                 throw new Error(i18n.t("receive.receive_strings_error"));
             }
 
@@ -313,6 +345,8 @@ export function Receive() {
         if (receiveState() === "show") {
             if (flavor() === "lightning") {
                 return receiveStrings()?.lightning;
+            } else if (flavor() === "ark") {
+                return receiveStrings()?.ark;
             } else if (flavor() === "onchain") {
                 return receiveStrings()?.onchain;
             }
@@ -325,6 +359,8 @@ export function Receive() {
         if (receiveState() === "show") {
             if (flavor() === "lightning") {
                 return rawReceiveStrings()?.bolt11;
+            } else if (flavor() === "ark") {
+                return rawReceiveStrings()?.arkAddress;
             } else if (flavor() === "onchain") {
                 return receiveStrings()?.onchain;
             }
@@ -333,10 +369,12 @@ export function Receive() {
 
     async function checkIfPaid(receiveStrings?: {
         bolt11?: string;
+        arkAddress?: string;
         address?: string;
     }): Promise<PaidState | undefined> {
         if (receiveStrings) {
             const lightning = receiveStrings.bolt11;
+            const arkAddress = receiveStrings.arkAddress;
             const address = receiveStrings.address;
 
             try {
@@ -355,6 +393,18 @@ export function Receive() {
                         setPaymentInvoice(invoice);
                         await vibrateSuccess();
                         return "lightning_paid";
+                    }
+                }
+
+                if (arkAddress) {
+                    console.log("checking ark address", arkAddress);
+                    const tx = await sw.check_ark_address(arkAddress);
+
+                    if (tx) {
+                        setReceiveState("paid");
+                        setPaymentTx(tx);
+                        await vibrateSuccess();
+                        return "ark_paid";
                     }
                 }
 
@@ -456,7 +506,11 @@ export function Receive() {
                             </form>
                             <Button
                                 disabled={
-                                    !amount() && !(flavor() === "onchain")
+                                    !amount() &&
+                                    !(
+                                        flavor() === "onchain" ||
+                                        flavor() === "ark"
+                                    )
                                 }
                                 intent="green"
                                 onClick={onSubmit}
@@ -511,8 +565,7 @@ export function Receive() {
                             </Show>
                             <MegaCheck />
                             <h1 class="mb-2 mt-4 w-full text-center text-2xl font-semibold md:text-3xl">
-                                {receiveState() === "paid" &&
-                                paidState() === "lightning_paid"
+                                {receiveState() === "paid" && paidState()
                                     ? i18n.t("receive.payment_received")
                                     : i18n.t("receive.payment_initiated")}
                             </h1>

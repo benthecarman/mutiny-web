@@ -53,9 +53,12 @@ type BarkPersistedState = {
 const STORAGE_DB = "mutiny-bark-state";
 const STORAGE_STORE = "kv";
 const STORAGE_KEY = "wallet";
+const BARK_WALLET_DB = "mutiny-bark-wallet";
+const BARK_ONCHAIN_WALLET_DB = "mutiny-bark-onchain-wallet";
 
 let wallet: Wallet | undefined;
 let onchainWallet: OnchainWallet | undefined;
+let activeConfig: Config | undefined;
 let walletNetwork: BarkNetwork = "Signet";
 const createdInvoices = new Map<string, MutinyInvoice>();
 const receiveClaimPromises = new Map<string, Promise<void>>();
@@ -191,7 +194,7 @@ function barkServerAddress(settings: MutinyWalletSettingStrings): string {
 
 function barkConfig(settings: MutinyWalletSettingStrings): Config {
     walletNetwork = barkNetwork(settings.network);
-    return {
+    activeConfig = {
         serverAddress: barkServerAddress(settings),
         esploraAddress:
             settings.esplora ||
@@ -201,6 +204,7 @@ function barkConfig(settings: MutinyWalletSettingStrings): Config {
         network: walletNetwork,
         daemonManualSync: true
     };
+    return activeConfig;
 }
 
 async function openDb(): Promise<IDBDatabase> {
@@ -242,6 +246,25 @@ async function deleteState(): Promise<void> {
 function ensureWallet(): Wallet {
     if (!wallet) throw new Error("Bark wallet is not initialized.");
     return wallet;
+}
+
+async function ensureOnchainWallet(): Promise<OnchainWallet> {
+    if (onchainWallet) return onchainWallet;
+
+    const state = await readState();
+    if (!state) throw new Error("No Bark wallet seed found.");
+    if (!activeConfig) throw new Error("Bark wallet is not initialized.");
+
+    onchainWallet = await withTimeout(
+        "Opening Bark on-chain wallet",
+        OnchainWallet.default({
+            mnemonic: state.mnemonic,
+            config: activeConfig,
+            dbName: BARK_ONCHAIN_WALLET_DB
+        })
+    );
+    await withTimeout("Syncing Bark on-chain wallet", onchainWallet.sync());
+    return onchainWallet;
 }
 
 async function withTimeout<T>(
@@ -416,7 +439,7 @@ export async function setupMutinyWallet(
     const args = {
         mnemonic: state.mnemonic,
         config,
-        dbName: "mutiny-bark-wallet"
+        dbName: BARK_WALLET_DB
     };
 
     console.log(created ? "Creating Bark wallet" : "Opening Bark wallet");
@@ -486,7 +509,8 @@ export async function stop(): Promise<void> {
 export async function delete_all(): Promise<void> {
     await stop();
     await deleteState();
-    indexedDB.deleteDatabase("mutiny-bark-wallet");
+    indexedDB.deleteDatabase(BARK_WALLET_DB);
+    indexedDB.deleteDatabase(BARK_ONCHAIN_WALLET_DB);
 }
 
 export async function get_bitcoin_price(fiat: string): Promise<number> {
@@ -748,12 +772,133 @@ export async function get_transaction(_txid: string): Promise<ActivityItem> {
 export async function get_new_address(
     _labels: string[]
 ): Promise<MutinyBip21RawMaterials> {
-    const address = await ensureWallet().newAddress();
+    const onchain = await ensureOnchainWallet();
+    const address = await onchain.newAddress();
     return { address, bip21: `bitcoin:${address}` };
 }
 
-export async function check_address(_address: string): Promise<OnChainTx> {
-    unsupported("Address monitoring");
+export async function get_new_ark_address(
+    _labels: string[]
+): Promise<MutinyBip21RawMaterials> {
+    const address = await ensureWallet().newAddress();
+    return { address, bip21: address };
+}
+
+function esploraAddress(): string {
+    const esplora = activeConfig?.esploraAddress;
+    if (!esplora) {
+        throw new Error("Missing Esplora server for on-chain receive checks.");
+    }
+    return esplora.replace(/\/$/, "");
+}
+
+type EsploraTx = {
+    txid: string;
+    version: number;
+    locktime: number;
+    vin?: Array<{
+        prevout?: {
+            scriptpubkey_address?: string;
+            value?: number;
+        };
+    }>;
+    vout?: Array<{
+        scriptpubkey?: string;
+        scriptpubkey_address?: string;
+        value?: number;
+    }>;
+    status?: {
+        block_height?: number;
+        block_time?: number;
+    };
+};
+
+function esploraTxToOnChainTx(tx: EsploraTx, address: string): OnChainTx {
+    const received =
+        tx.vout?.reduce((total, output) => {
+            if (output.scriptpubkey_address !== address) return total;
+            return total + (output.value ?? 0);
+        }, 0) ?? 0;
+    const sent =
+        tx.vin?.reduce((total, input) => {
+            if (input.prevout?.scriptpubkey_address !== address) return total;
+            return total + (input.prevout.value ?? 0);
+        }, 0) ?? 0;
+
+    return {
+        transaction: {
+            version: tx.version,
+            lock_time: tx.locktime,
+            input: [],
+            output:
+                tx.vout?.map((output) => ({
+                    value: output.value ?? 0,
+                    script_pubkey: output.scriptpubkey ?? ""
+                })) ?? []
+        },
+        txid: tx.txid,
+        internal_id: tx.txid,
+        received,
+        sent,
+        confirmation_time: {
+            height: tx.status?.block_height ?? 0,
+            timestamp: tx.status?.block_time ?? Math.floor(Date.now() / 1000)
+        }
+    };
+}
+
+export async function check_address(
+    address: string
+): Promise<OnChainTx | undefined> {
+    const onchain = await ensureOnchainWallet();
+    await withTimeout("Syncing Bark on-chain wallet", onchain.sync());
+
+    const res = await fetch(
+        `${esploraAddress()}/address/${encodeURIComponent(address)}/txs`
+    );
+    if (!res.ok) {
+        throw new Error(`Could not check address: ${res.statusText}`);
+    }
+    const txs = (await res.json()) as EsploraTx[];
+    const tx = txs.find((tx) =>
+        tx.vout?.some((output) => output.scriptpubkey_address === address)
+    );
+    return tx ? esploraTxToOnChainTx(tx, address) : undefined;
+}
+
+export async function check_ark_address(
+    address: string
+): Promise<OnChainTx | undefined> {
+    await ensureWallet().sync();
+    const movement = (await ensureWallet().history()).find(
+        (movement) =>
+            movement.effectiveBalanceSats > 0 &&
+            movement.receivedOnAddresses.includes(address)
+    );
+
+    if (!movement) return undefined;
+
+    return {
+        transaction: {
+            version: 0,
+            lock_time: 0,
+            input: [],
+            output: []
+        },
+        txid: String(movement.id),
+        internal_id: String(movement.id),
+        received: movement.effectiveBalanceSats,
+        sent: 0,
+        confirmation_time: {
+            height: 0,
+            timestamp:
+                Date.parse(
+                    movement.completedAt ||
+                        movement.updatedAt ||
+                        movement.createdAt
+                ) / 1000
+        }
+    };
 }
 
 export async function list_channels(): Promise<MutinyChannel[]> {
@@ -1024,7 +1169,8 @@ export async function restore_mnemonic(
         throw new Error("Invalid mnemonic.");
     }
     await stop();
-    indexedDB.deleteDatabase("mutiny-bark-wallet");
+    indexedDB.deleteDatabase(BARK_WALLET_DB);
+    indexedDB.deleteDatabase(BARK_ONCHAIN_WALLET_DB);
     await writeState({ mnemonic });
 }
 
