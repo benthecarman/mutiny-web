@@ -66,6 +66,7 @@ export type PaymentParams = {
     address?: string;
     amount_msats?: bigint;
     amount_sats?: bigint;
+    ark_address?: string;
     cashu_token?: string;
     disable_output_substitution?: boolean;
     fedimint_invite_code?: string;

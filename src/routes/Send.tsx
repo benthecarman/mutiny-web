@@ -47,7 +47,7 @@ import { useMegaStore } from "~/state/megaStore";
 import { MutinyInvoice, TagItem } from "~/types/wallet";
 import { eify, vibrateSuccess } from "~/utils";
 
-export type SendSource = "lightning" | "onchain";
+export type SendSource = "lightning" | "onchain" | "ark";
 export type PrivacyLevel = "Public" | "Private" | "Anonymous" | "Not Available";
 
 // const TEST_DEST = "bitcoin:tb1pdh43en28jmhnsrhxkusja46aufdlae5qnfrhucw5jvefw9flce3sdxfcwe?amount=0.00001&label=heyo&lightning=lntbs10u1pjrwrdedq8dpjhjmcnp4qd60w268ve0jencwzhz048ruprkxefhj0va2uspgj4q42azdg89uupp5gngy2pqte5q5uvnwcxwl2t8fsdlla5s6xl8aar4xcsvxeus2w2pqsp5n5jp3pz3vpu92p3uswttxmw79a5lc566herwh3f2amwz2sp6f9tq9qyysgqcqpcxqrpwugv5m534ww5ukcf6sdw2m75f2ntjfh3gzeqay649256yvtecgnhjyugf74zakaf56sdh66ec9fqep2kvu6xv09gcwkv36rrkm38ylqsgpw3yfjl"
@@ -67,6 +67,7 @@ function DestinationShower(props: {
     source: SendSource;
     description?: string;
     address?: string;
+    arkAddress?: string;
     invoice?: MutinyInvoice;
     nodePubkey?: string;
     lnurl?: string;
@@ -93,6 +94,13 @@ function DestinationShower(props: {
                 <DestinationItem
                     title="On-chain"
                     value={<StringShower text={props.address || ""} />}
+                    icon={<Link class="h-4 w-4" />}
+                />
+            </Match>
+            <Match when={props.arkAddress && props.source === "ark"}>
+                <DestinationItem
+                    title="Ark"
+                    value={<StringShower text={props.arkAddress || ""} />}
                     icon={<Link class="h-4 w-4" />}
                 />
             </Match>
@@ -180,6 +188,7 @@ export function Send() {
     const [lnAddress, setLnAddress] = createSignal<string>();
     const [originalScan, setOriginalScan] = createSignal<string>();
     const [address, setAddress] = createSignal<string>();
+    const [arkAddress, setArkAddress] = createSignal<string>();
     const [payjoinEnabled, setPayjoinEnabled] = createSignal<boolean>();
     const [description, setDescription] = createSignal<string>();
     const [contactId, setContactId] = createSignal<string>();
@@ -249,12 +258,14 @@ export function Send() {
     const maxOnchain = createMemo(() => {
         const conf = state.balance?.confirmed ?? 0n;
         const unc = state.balance?.unconfirmed ?? 0n;
+        const barkSpendable = state.balance?.lightning ?? 0n;
         const fed = state.balance?.federation ?? 0n;
+        const spendable = conf + unc + barkSpendable;
 
-        if (fed > conf + unc) {
+        if (fed > spendable) {
             return fed;
         } else {
-            return conf + unc;
+            return spendable;
         }
     });
 
@@ -283,6 +294,10 @@ export function Send() {
         // Don't recompute if sending
         if (sending()) return;
         if (source() === "onchain" && maxOnchain() < amountSats()) {
+            setError(i18n.t("send.error_low_balance"));
+            return;
+        }
+        if (source() === "ark" && maxLightning() < amountSats()) {
             setError(i18n.t("send.error_low_balance"));
             return;
         }
@@ -354,6 +369,7 @@ export function Send() {
         () =>
             !!invoice() ||
             !!address() ||
+            !!arkAddress() ||
             !!nodePubkey() ||
             !!lnurlp() ||
             !!lnAddress()
@@ -365,12 +381,17 @@ export function Send() {
         setOriginalScan(source.original);
         try {
             if (source.address) setAddress(source.address);
+            if (source.ark_address) setArkAddress(source.ark_address);
             if (source.payjoin_enabled)
                 setPayjoinEnabled(source.payjoin_enabled);
             if (source.memo) setDescription(source.memo);
             if (source.contact_id) setContactId(source.contact_id);
 
-            if (source.invoice) {
+            if (source.ark_address) {
+                setAmountSats(source.amount_sats || 0n);
+                if (source.amount_sats) setIsAmtEditable(false);
+                setSource("ark");
+            } else if (source.invoice) {
                 processInvoice(source as ParsedParams & { invoice: string });
             } else if (source.node_pubkey) {
                 processNodePubkey(
@@ -586,6 +607,16 @@ export function Send() {
                     sentDetails.txid = txid;
                     sentDetails.fee_estimate = feeEstimate.latest ?? 0;
                 }
+            } else if (source() === "ark" && arkAddress()) {
+                const paymentId = await sw.send_ark_address(
+                    arkAddress()!,
+                    amountSats(),
+                    tags
+                );
+                sentDetails.amount = amountSats();
+                sentDetails.destination = arkAddress();
+                sentDetails.txid = paymentId;
+                sentDetails.fee_estimate = 0;
             }
             if (sentDetails.payment_hash || sentDetails.txid) {
                 setSentDetails(sentDetails as SentDetails);
@@ -632,9 +663,20 @@ export function Send() {
         };
     });
 
+    const arkMethod = createMemo<MethodChoice>(() => {
+        return {
+            method: "ark",
+            maxAmountSats: maxLightning()
+        };
+    });
+
     const sendMethods = createMemo<MethodChoice[]>(() => {
         if (lnAddress() || lnurlp() || nodePubkey()) {
             return [lightningMethod()];
+        }
+
+        if (arkAddress()) {
+            return [arkMethod()];
         }
 
         if (invoice() && address()) {
@@ -660,6 +702,8 @@ export function Send() {
             setSource("lightning");
         } else if (method.method === "onchain") {
             setSource("onchain");
+        } else if (method.method === "ark") {
+            setSource("ark");
         }
     }
 
@@ -668,6 +712,8 @@ export function Send() {
             return lightningMethod();
         } else if (source() === "onchain") {
             return onchainMethod();
+        } else if (source() === "ark") {
+            return arkMethod();
         }
     });
 
@@ -830,6 +876,7 @@ export function Send() {
                                 description={description()}
                                 invoice={invoice()}
                                 address={address()}
+                                arkAddress={arkAddress()}
                                 nodePubkey={nodePubkey()}
                                 lnurl={lnurlp()}
                                 lightning_address={lnAddress()}

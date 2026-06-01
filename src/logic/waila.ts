@@ -6,6 +6,7 @@ export type ParsedParams = {
     address?: string;
     payjoin_enabled?: boolean;
     invoice?: string;
+    ark_address?: string;
     amount_sats?: bigint;
     network?: string;
     memo?: string;
@@ -55,6 +56,7 @@ export async function toParsedParams(
             address: params.address,
             payjoin_enabled: params.payjoin_supported,
             invoice: params.invoice,
+            ark_address: params.ark_address,
             amount_sats: params.amount_sats,
             network,
             memo: params.memo,

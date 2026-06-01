@@ -19,7 +19,7 @@ import {
 } from "~/utils";
 
 export type MethodChoice = {
-    method: "lightning" | "onchain" | "fedimint";
+    method: "lightning" | "onchain" | "fedimint" | "ark";
     maxAmountSats?: bigint;
 };
 
@@ -28,6 +28,8 @@ function methodToIcon(method: MethodChoice["method"]) {
         case "lightning":
             return "lightning";
         case "onchain":
+            return "chain";
+        case "ark":
             return "chain";
         case "fedimint":
             return "community";

@@ -696,6 +696,14 @@ export async function send_to_address(
     );
 }
 
+export async function send_ark_address(
+    ark_address: string,
+    amount: bigint,
+    ..._args: any[]
+): Promise<string | undefined> {
+    return await ensureWallet().sendArkoorPayment(ark_address, Number(amount));
+}
+
 export async function keysend(
     ..._args: any[]
 ): Promise<MutinyInvoice | undefined> {
@@ -1076,10 +1084,10 @@ export async function parse_params(params: string): Promise<PaymentParams> {
         lower.startsWith("lnbcrt")
     ) {
         parsed.invoice = value;
-    } else if (lower.startsWith("ark")) {
-        parsed.offer = value;
+    } else if (lower.startsWith("ark") || lower.startsWith("tark")) {
+        parsed.ark_address = value;
     } else if (validateArkAddress(value)) {
-        parsed.offer = value;
+        parsed.ark_address = value;
     } else if (lower.startsWith("bitcoin:")) {
         const url = new URL(value);
         parsed.address = url.pathname;
