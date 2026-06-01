@@ -11,17 +11,12 @@ WORKDIR /app
 # I think we need git be here because the vite build wants to look up the commit hash
 RUN apt update && apt install -y git python3 make build-essential
 
-# Add the ARG directives for build-time environment variables
-ARG VITE_NETWORK="bitcoin"
-ARG VITE_PROXY="/_services/proxy"
-ARG VITE_PRIMAL="https://primal-cache.mutinywallet.com/api"
-ARG VITE_ESPLORA
-ARG VITE_SCORER="https://scorer.mutinywallet.com"
-ARG VITE_LSP="https://0conf.lnolymp.us"
-ARG VITE_RGS
-ARG VITE_AUTH
-ARG VITE_STORAGE="/_services/vss/v2"
-ARG VITE_SELFHOSTED="true"
+# Bark build-time defaults. Override these with --build-arg for a custom
+# Ark server or network.
+ARG VITE_NETWORK="signet"
+ARG VITE_BARK_SERVER="https://ark.signet.2nd.dev"
+ARG VITE_ARK_SERVER
+ARG VITE_ESPLORA="https://esplora.signet.2nd.dev"
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
