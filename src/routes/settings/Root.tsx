@@ -111,6 +111,16 @@ export function Settings() {
                         }
                     ]}
                 />
+                <SettingsLinkList
+                    header={i18n.t("settings.social")}
+                    links={[
+                        {
+                            href: "/settings/nostrkeys",
+                            text: i18n.t("settings.nostr_keys.title"),
+                            caption: i18n.t("settings.nostr_keys.caption")
+                        }
+                    ]}
+                />
                 <div class="flex justify-center">
                     <FeedbackLink />
                 </div>

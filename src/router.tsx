@@ -19,11 +19,25 @@ import {
     SetupErrorDisplay,
     Toaster
 } from "~/components";
-import { Feedback, Main, NotFound, Receive, Scanner, Send } from "~/routes";
+import {
+    Chat,
+    EditProfile,
+    Feedback,
+    Main,
+    NotFound,
+    Profile,
+    Receive,
+    RequestRoute,
+    Scanner,
+    Search,
+    Send
+} from "~/routes";
 import {
     Backup,
     Currency,
+    ImportProfileSettings,
     Language,
+    NostrKeys,
     Restore,
     Servers,
     Settings
@@ -141,6 +155,11 @@ export function Router() {
             <Route path="/setup" component={Setup} />
             <Route path="/setup/restore" component={SetupRestore} />
             <Route path="/feedback" component={Feedback} />
+            <Route path="/profile" component={Profile} />
+            <Route path="/editprofile" component={EditProfile} />
+            <Route path="/search" component={Search} />
+            <Route path="/chat/:id" component={Chat} />
+            <Route path="/request/:id" component={RequestRoute} />
             <Route path="/receive" component={Receive} />
             <Route path="/scanner" component={Scanner} />
             <Route path="/send" component={Send} />
@@ -149,6 +168,11 @@ export function Router() {
                 <Route path="/backup" component={Backup} />
                 <Route path="/currency" component={Currency} />
                 <Route path="/language" component={Language} />
+                <Route path="/nostrkeys" component={NostrKeys} />
+                <Route
+                    path="/importprofile"
+                    component={ImportProfileSettings}
+                />
                 <Route path="/restore" component={Restore} />
                 <Route path="/servers" component={Servers} />
             </Route>

@@ -46,12 +46,12 @@ export function RequestRoute() {
                 tags.push(whatForInput().trim());
             }
 
-            const raw = await sw.create_bip21(amount(), tags);
+            const invoice = await sw.create_invoice(amount(), tags);
 
-            if (!raw || !raw.invoice)
+            if (!invoice?.bolt11)
                 throw new Error("Invoice creation failed");
 
-            await sw.send_dm(npub, raw.invoice);
+            await sw.send_dm(npub, invoice.bolt11);
 
             navigate("/chat/" + params.id);
         } catch (e) {

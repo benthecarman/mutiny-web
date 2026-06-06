@@ -617,6 +617,7 @@
       "warning": "Be careful where you share your private nostr key!",
       "learn_more": "Learn more about nostr",
       "import_profile": "Import a nostr profile",
+      "change_key": "Change Nostr key",
       "delete_account": "Delete account",
       "delete_account_confirm": "Deleting a nostr profile cannot be undone and will disable some social features of the wallet.",
       "unlink_account": "Unlink nostr profile",

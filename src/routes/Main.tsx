@@ -35,7 +35,7 @@ export function WalletHeader(props: { loading: boolean }) {
                         contact
                         label={false}
                         image_url={undefined}
-                        onClick={() => navigate("/settings")}
+                        onClick={() => navigate("/profile")}
                     />
                 }
             >
@@ -43,7 +43,7 @@ export function WalletHeader(props: { loading: boolean }) {
                     contact
                     label={false}
                     image_url={profile()?.picture}
-                    onClick={() => navigate("/settings")}
+                    onClick={() => navigate("/profile")}
                 />
             </Suspense>
             <HomeBalance />
@@ -89,7 +89,7 @@ export function Main() {
             </Show>
 
             <Fab
-                onSearch={() => navigate("/send")}
+                onSearch={() => navigate("/search")}
                 onScan={() => navigate("/scanner")}
             />
 

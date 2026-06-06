@@ -171,7 +171,7 @@ export function NostrKeys() {
                             class="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-neutral-900 p-2 text-m-grey-350 no-underline active:-mb-[1px] active:mt-[1px] active:opacity-70"
                         >
                             <Import class="w-4" />
-                            {i18n.t("settings.nostr_keys.import_profile")}
+                            {i18n.t("settings.nostr_keys.change_key")}
                         </A>
                         <Switch>
                             <Match when={nsecInSecureStorage()}>
