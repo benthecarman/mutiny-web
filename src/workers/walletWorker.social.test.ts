@@ -129,6 +129,53 @@ describe("walletWorker social API", () => {
         ).resolves.toBe(expectedNpub);
     });
 
+    test("overwrites cached account state when changing Nostr keys", async () => {
+        const worker = await import("./walletWorker");
+        const firstSecret = generateSecretKey();
+        const secondSecret = generateSecretKey();
+        const followedNpub = nip19.npubEncode(
+            getPublicKey(generateSecretKey())
+        );
+
+        await worker.change_nostr_keys(nsec(firstSecret));
+        const contactId = await worker.create_new_contact(
+            "Followed",
+            followedNpub
+        );
+        await worker.setup_new_profile("First Account");
+        await worker.follow_npub(followedNpub);
+        await expect(worker.get_nostr_profile()).resolves.toMatchObject({
+            name: "First Account"
+        });
+        await expect(worker.get_tag_item(contactId)).resolves.toMatchObject({
+            is_followed: true
+        });
+
+        MockWebSocket.handlers.set("user_profile", [
+            {
+                id: "second-profile",
+                pubkey: getPublicKey(secondSecret),
+                created_at: 1,
+                kind: 0,
+                tags: [],
+                content: JSON.stringify({ name: "Second Account" }),
+                sig: "sig"
+            }
+        ]);
+
+        await worker.change_nostr_keys(nsec(secondSecret));
+
+        await expect(worker.get_npub()).resolves.toBe(
+            nip19.npubEncode(getPublicKey(secondSecret))
+        );
+        await expect(worker.get_nostr_profile()).resolves.toMatchObject({
+            name: "Second Account"
+        });
+        await expect(worker.get_tag_item(contactId)).resolves.toMatchObject({
+            is_followed: false
+        });
+    });
+
     test("creates, edits, sorts, finds, and deletes local contacts", async () => {
         const worker = await import("./walletWorker");
         const alice = nip19.npubEncode(getPublicKey(generateSecretKey()));

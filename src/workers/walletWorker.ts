@@ -1695,7 +1695,6 @@ export async function change_nostr_keys(
     nsec?: string,
     extension_pk?: string
 ): Promise<string> {
-    const state = await readNostrState();
     let secretKey: string | undefined;
     let pubkey: string;
 
@@ -1710,10 +1709,9 @@ export async function change_nostr_keys(
     }
 
     await writeNostrState({
-        ...state,
         secretKey,
         pubkey,
-        follows: state.follows || []
+        follows: []
     });
     return nip19.npubEncode(pubkey);
 }
