@@ -16,6 +16,7 @@ export * from "./fetchZaps";
 export * from "./vibrate";
 export * from "./openLinkProgrammatically";
 export * from "./nostr";
+export * from "./nostrKeyStorage";
 export * from "./currencies";
 export * from "./languages";
 export * from "./bech32";

@@ -42,7 +42,12 @@ import {
     Servers,
     Settings
 } from "~/routes/settings";
-import { Setup, SetupRestore } from "~/routes/setup";
+import {
+    ImportProfile,
+    NewProfile,
+    Setup,
+    SetupRestore
+} from "~/routes/setup";
 import { Provider as MegaStoreProvider, useMegaStore } from "~/state/megaStore";
 
 const setStatusBarStyleDark = async () => {
@@ -154,6 +159,8 @@ export function Router() {
             <Route path="/" component={Main} />
             <Route path="/setup" component={Setup} />
             <Route path="/setup/restore" component={SetupRestore} />
+            <Route path="/newprofile" component={NewProfile} />
+            <Route path="/importprofile" component={ImportProfile} />
             <Route path="/feedback" component={Feedback} />
             <Route path="/profile" component={Profile} />
             <Route path="/editprofile" component={EditProfile} />

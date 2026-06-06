@@ -1,6 +1,5 @@
 // Inspired by https://github.com/solidjs/solid-realworld/blob/main/src/store/index.js
 import { useNavigate, useSearchParams } from "@solidjs/router";
-import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { Remote } from "comlink";
 import {
     createContext,
@@ -26,6 +25,7 @@ import {
     BTC_OPTION,
     Currency,
     eify,
+    getStoredNsec,
     subscriptionValid,
     USD_OPTION
 } from "~/utils";
@@ -197,16 +197,7 @@ export const makeMegaStoreContext = () => {
                     }
                 }, 1000);
 
-                let nsec;
-                // get nsec from secure storage
-                try {
-                    const value = await SecureStoragePlugin.get({
-                        key: "nsec"
-                    });
-                    nsec = value.value;
-                } catch (e) {
-                    console.log("No nsec stored");
-                }
+                const nsec = await getStoredNsec();
 
                 // https://developer.mozilla.org/en-US/docs/Web/API/Storage_API
                 // Ask the browser to not clear storage

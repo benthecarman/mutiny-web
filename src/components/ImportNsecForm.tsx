@@ -1,9 +1,9 @@
 import { useNavigate } from "@solidjs/router";
-import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { createSignal, Show } from "solid-js";
 
 import { Button, InfoBox, SimpleInput } from "~/components";
 import { useMegaStore } from "~/state/megaStore";
+import { setStoredNsec } from "~/utils";
 
 export function ImportNsecForm(props: { setup?: boolean }) {
     const [_state, _actions, sw] = useMegaStore();
@@ -21,7 +21,7 @@ export function ImportNsecForm(props: { setup?: boolean }) {
             if (!npub) {
                 throw new Error("Invalid nsec");
             }
-            await SecureStoragePlugin.set({ key: "nsec", value: trimmedNsec });
+            await setStoredNsec(trimmedNsec);
 
             const new_npub = await sw.change_nostr_keys(trimmedNsec, undefined);
             console.log("Changed to new npub: ", new_npub);

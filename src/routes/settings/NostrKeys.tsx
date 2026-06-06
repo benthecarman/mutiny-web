@@ -1,5 +1,4 @@
 import { A, createAsync } from "@solidjs/router";
-import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { Import, Trash, Unlink } from "lucide-solid";
 import { createResource, createSignal, Match, Show, Switch } from "solid-js";
 import { QRCodeSVG } from "solid-qr-code";
@@ -20,6 +19,7 @@ import {
 } from "~/components";
 import { useI18n } from "~/i18n/context";
 import { useMegaStore } from "~/state/megaStore";
+import { clearStoredNsec, getStoredNsec } from "~/utils";
 
 function DeleteAccount() {
     const i18n = useI18n();
@@ -36,8 +36,7 @@ function DeleteAccount() {
         setConfirmLoading(true);
         try {
             await sw.delete_profile();
-            // Remove the nsec from secure storage if it exists
-            await SecureStoragePlugin.clear();
+            await clearStoredNsec();
             window.location.href = "/";
         } catch (e) {
             console.error(e);
@@ -82,7 +81,7 @@ function UnlinkAccount() {
     async function unlinkNostrAccount() {
         setConfirmLoading(true);
         try {
-            await SecureStoragePlugin.clear();
+            await clearStoredNsec();
             window.location.href = "/";
         } catch (e) {
             console.error(e);
@@ -120,13 +119,7 @@ export function NostrKeys() {
     const profile = createAsync(async () => await sw.get_nostr_profile());
 
     const [nsecInSecureStorage] = createResource(async () => {
-        try {
-            const value = await SecureStoragePlugin.get({ key: "nsec" });
-            if (value) return true;
-        } catch (e) {
-            console.log("No nsec stored");
-            return false;
-        }
+        return !!(await getStoredNsec());
     });
 
     return (
@@ -183,6 +176,15 @@ export function NostrKeys() {
                         </Switch>
                     </Match>
                     <Match when={profile() && profile()?.deleted}>
+                        <A
+                            href="/settings/importprofile"
+                            class="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-neutral-900 p-2 text-m-grey-350 no-underline active:-mb-[1px] active:mt-[1px] active:opacity-70"
+                        >
+                            <Import class="w-4" />
+                            {i18n.t("settings.nostr_keys.import_profile")}
+                        </A>
+                    </Match>
+                    <Match when={!profile()}>
                         <A
                             href="/settings/importprofile"
                             class="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-neutral-900 p-2 text-m-grey-350 no-underline active:-mb-[1px] active:mt-[1px] active:opacity-70"
