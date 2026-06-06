@@ -7,6 +7,7 @@ import {
     NostrKind,
     NostrTag
 } from "~/utils/nostr";
+import { DEFAULT_PRIMAL_URL, primalRequest } from "~/utils/primal";
 
 export const ZAPPLE_PAY_NPUB =
     "npub1wxl6njlcgygduct7jkgzrvyvd9fylj4pqvll6p32h59wyetm5fxqjchcan";
@@ -141,8 +142,7 @@ async function simpleZapFromEvent(
     }
 }
 
-// todo remove
-const PRIMAL_API = import.meta.env.VITE_PRIMAL;
+const PRIMAL_URL = import.meta.env.VITE_PRIMAL || DEFAULT_PRIMAL_URL;
 
 type PrimalResponse = NostrEvent | NostrProfile;
 
@@ -151,7 +151,8 @@ async function fetchZapsFromPrimal(
     primal_url?: string,
     until?: number
 ): Promise<PrimalResponse[]> {
-    if (!primal_url) throw new Error("Missing PRIMAL_API environment variable");
+    if (!primal_url)
+        throw new Error("Missing VITE_PRIMAL environment variable");
 
     const query = {
         kinds: [9735, 0, 10000113],
@@ -159,28 +160,14 @@ async function fetchZapsFromPrimal(
         pubkeys: follows
     };
 
-    const restPayload = JSON.stringify([
+    const data = await primalRequest<PrimalResponse>(primal_url, [
         "zaps_feed",
         // If we have a until value, use it, otherwise don't include it
         until ? { ...query, since: until } : query
     ]);
 
-    const response = await fetch(primal_url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: restPayload
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to load zaps`);
-    }
-
-    const data = await response.json();
-
     // A primal response could be an error ({error: "error"}, or an array of events
-    if (data.error || !Array.isArray(data)) {
+    if (!Array.isArray(data)) {
         throw new Error("Zap response was not an array");
     }
 
@@ -208,7 +195,7 @@ export const fetchZaps: ResourceFetcher<
 
         const primal_url = state.settings?.primal_api;
         if (!primal_url)
-            throw new Error("Missing PRIMAL_API environment variable");
+            throw new Error("Missing VITE_PRIMAL environment variable");
 
         // Only have to ask the relays for follows one time
         if (follows.length === 0) {
@@ -305,22 +292,13 @@ export const fetchNostrProfile: ResourceFetcher<
 
 export async function actuallyFetchNostrProfile(hexpub: string) {
     try {
-        if (!PRIMAL_API)
-            throw new Error("Missing PRIMAL_API environment variable");
+        if (!PRIMAL_URL)
+            throw new Error("Missing VITE_PRIMAL environment variable");
 
-        const response = await fetch(PRIMAL_API, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(["user_profile", { pubkey: hexpub }])
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to load profile`);
-        }
-
-        const data = await response.json();
+        const data = await primalRequest<NostrProfile>(PRIMAL_URL, [
+            "user_profile",
+            { pubkey: hexpub }
+        ]);
 
         for (const object of data) {
             if (object.kind === 0) {
@@ -345,22 +323,10 @@ export type PseudoContact = {
 
 export async function searchProfiles(query: string): Promise<PseudoContact[]> {
     console.log("searching profiles...");
-    const response = await fetch(PRIMAL_API, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify([
-            "user_search",
-            { query: query.trim(), limit: 10 }
-        ])
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to search`);
-    }
-
-    const data = await response.json();
+    const data = await primalRequest<NostrProfile>(PRIMAL_URL, [
+        "user_search",
+        { query: query.trim(), limit: 10 }
+    ]);
 
     const users: PseudoContact[] = [];
 

@@ -9,6 +9,16 @@ import {
     validateMnemonic,
     Wallet
 } from "@secondts/bark";
+import {
+    EventTemplate,
+    finalizeEvent,
+    generateSecretKey,
+    getPublicKey,
+    nip04,
+    nip19,
+    Event as NostrEvent,
+    SimplePool
+} from "nostr-tools";
 
 import { IActivityItem } from "~/components";
 import { MutinyWalletSettingStrings } from "~/logic/mutinyWalletSetup";
@@ -36,6 +46,10 @@ import {
     TagItem
 } from "~/types/wallet";
 import { bech32 } from "~/utils/bech32";
+import {
+    DEFAULT_PRIMAL_URL,
+    primalRequest as requestPrimal
+} from "~/utils/primal";
 
 type NostrMetadata = {
     name?: string;
@@ -50,15 +64,40 @@ type BarkPersistedState = {
     mnemonic: string;
 };
 
+type StoredContact = {
+    name: string;
+    npub?: string;
+    ln_address?: string;
+    lnurl?: string;
+    image_url?: string;
+    last_used: number;
+};
+
+type NostrState = {
+    secretKey?: string;
+    pubkey?: string;
+    profile?: NostrMetadata;
+    follows: string[];
+};
+
 const STORAGE_DB = "mutiny-bark-state";
 const STORAGE_STORE = "kv";
 const STORAGE_KEY = "wallet";
+const CONTACTS_KEY = "contacts";
+const NOSTR_KEY = "nostr";
 const BARK_WALLET_DB = "mutiny-bark-wallet";
 const BARK_ONCHAIN_WALLET_DB = "mutiny-bark-onchain-wallet";
+const DEFAULT_NOSTR_RELAYS = [
+    "wss://relay.damus.io",
+    "wss://nos.lol",
+    "wss://relay.primal.net",
+    "wss://nostr.wine"
+];
 
 let wallet: Wallet | undefined;
 let onchainWallet: OnchainWallet | undefined;
 let activeConfig: Config | undefined;
+let activePrimalApi: string | undefined;
 let walletNetwork: BarkNetwork = "Signet";
 const createdInvoices = new Map<string, MutinyInvoice>();
 const receiveClaimPromises = new Map<string, Promise<void>>();
@@ -243,6 +282,327 @@ async function deleteState(): Promise<void> {
     indexedDB.deleteDatabase(STORAGE_DB);
 }
 
+async function readKv<T>(key: string): Promise<T | undefined> {
+    const db = await openDb();
+    return await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORAGE_STORE, "readonly");
+        const request = tx.objectStore(STORAGE_STORE).get(key);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result as T | undefined);
+    });
+}
+
+async function writeKv<T>(key: string, value: T): Promise<void> {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORAGE_STORE, "readwrite");
+        tx.objectStore(STORAGE_STORE).put(value, key);
+        tx.onerror = () => reject(tx.error);
+        tx.oncomplete = () => resolve();
+    });
+}
+
+async function readContacts(): Promise<Record<string, StoredContact>> {
+    return (await readKv<Record<string, StoredContact>>(CONTACTS_KEY)) || {};
+}
+
+async function writeContacts(
+    contacts: Record<string, StoredContact>
+): Promise<void> {
+    await writeKv(CONTACTS_KEY, contacts);
+}
+
+async function readNostrState(): Promise<NostrState> {
+    return (
+        (await readKv<NostrState>(NOSTR_KEY)) || {
+            follows: []
+        }
+    );
+}
+
+async function writeNostrState(state: NostrState): Promise<void> {
+    await writeKv(NOSTR_KEY, { ...state, follows: state.follows || [] });
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+    return Array.from(bytes)
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+function hexToBytes(hex: string): Uint8Array {
+    if (!/^[0-9a-f]*$/iu.test(hex) || hex.length % 2 !== 0) {
+        throw new Error("Invalid hex string.");
+    }
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+function base64Encode(value: string): string {
+    return btoa(value);
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return bytesToHex(new Uint8Array(digest));
+}
+
+function normalizePubkey(value: string): string {
+    const trimmed = value.trim();
+    if (/^[0-9a-f]{64}$/iu.test(trimmed)) return trimmed.toLowerCase();
+
+    const decoded = nip19.decode(trimmed);
+    if (decoded.type !== "npub") {
+        throw new Error("Expected a Nostr npub or hex public key.");
+    }
+    return decoded.data;
+}
+
+function normalizeNpub(value: string): string {
+    return nip19.npubEncode(normalizePubkey(value));
+}
+
+function decodeSecretKey(nsec: string): string {
+    const decoded = nip19.decode(nsec.trim());
+    if (decoded.type !== "nsec") {
+        throw new Error("Expected a Nostr nsec private key.");
+    }
+    return bytesToHex(decoded.data);
+}
+
+function newContactId(): string {
+    return `contact-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function contactToTagItem(
+    id: string,
+    contact: StoredContact,
+    follows: string[]
+): TagItem {
+    return {
+        id,
+        kind: "contact",
+        name: contact.name,
+        label: contact.name,
+        npub: contact.npub,
+        ln_address: contact.ln_address,
+        lnurl: contact.lnurl,
+        image_url: contact.image_url,
+        primal_image_url: contact.image_url
+            ? `https://primal.b-cdn.net/media-cache?s=s&a=1&u=${encodeURIComponent(
+                  contact.image_url
+              )}`
+            : undefined,
+        is_followed: contact.npub ? follows.includes(contact.npub) : false,
+        last_used: contact.last_used
+    };
+}
+
+function pubkeyFromSecret(secretKey: string): string {
+    return getPublicKey(hexToBytes(secretKey));
+}
+
+async function ensureNostrKeys(): Promise<
+    Required<Pick<NostrState, "secretKey" | "pubkey">>
+> {
+    let state = await readNostrState();
+    if (!state.secretKey) {
+        const secretKey = bytesToHex(generateSecretKey());
+        state = {
+            ...state,
+            secretKey,
+            pubkey: pubkeyFromSecret(secretKey),
+            follows: state.follows || []
+        };
+        await writeNostrState(state);
+    }
+
+    if (!state.secretKey) throw new Error("Nostr secret key not found.");
+
+    return {
+        secretKey: state.secretKey,
+        pubkey: state.pubkey || pubkeyFromSecret(state.secretKey)
+    };
+}
+
+async function getNostrPubkey(): Promise<string | undefined> {
+    const state = await readNostrState();
+    if (state.pubkey) return state.pubkey;
+    if (!state.secretKey) return undefined;
+    const pubkey = pubkeyFromSecret(state.secretKey);
+    await writeNostrState({ ...state, pubkey });
+    return pubkey;
+}
+
+function profileContent(profile: NostrMetadata): string {
+    return JSON.stringify({
+        name: profile.name,
+        display_name: profile.display_name || profile.name,
+        picture: profile.picture,
+        lud16: profile.lud16,
+        nip05: profile.nip05,
+        deleted: profile.deleted
+    });
+}
+
+function contactListContent(): string {
+    return JSON.stringify(
+        Object.fromEntries(
+            DEFAULT_NOSTR_RELAYS.map((relay) => [
+                relay,
+                { read: true, write: true }
+            ])
+        )
+    );
+}
+
+async function publishNostrEvent(event: EventTemplate): Promise<NostrEvent> {
+    const { secretKey } = await ensureNostrKeys();
+    const signed = finalizeEvent(event, hexToBytes(secretKey));
+    const pool = new SimplePool();
+    try {
+        await Promise.any(pool.publish(DEFAULT_NOSTR_RELAYS, signed));
+    } finally {
+        pool.close(DEFAULT_NOSTR_RELAYS);
+    }
+    return signed;
+}
+
+async function signNostrEvent(event: EventTemplate): Promise<NostrEvent> {
+    const { secretKey } = await ensureNostrKeys();
+    return finalizeEvent(event, hexToBytes(secretKey));
+}
+
+function primalApiUrl(): string {
+    const url =
+        activePrimalApi || import.meta.env.VITE_PRIMAL || DEFAULT_PRIMAL_URL;
+    if (!url) throw new Error("Missing VITE_PRIMAL environment variable.");
+    return url;
+}
+
+async function primalRequest(body: unknown): Promise<NostrEvent[]> {
+    const data = await requestPrimal(primalApiUrl(), body as [string, unknown]);
+    return data.filter((item): item is NostrEvent => {
+        const event = item as Partial<NostrEvent>;
+        return (
+            typeof event.id === "string" &&
+            typeof event.pubkey === "string" &&
+            typeof event.kind === "number" &&
+            typeof event.content === "string" &&
+            Array.isArray(event.tags)
+        );
+    });
+}
+
+function metadataFromEvent(
+    event: NostrEvent | undefined
+): Record<string, string | boolean | undefined> {
+    if (!event || event.kind !== 0) return {};
+    try {
+        return JSON.parse(event.content) as Record<
+            string,
+            string | boolean | undefined
+        >;
+    } catch (e) {
+        console.warn("Unable to parse Nostr profile", e);
+        return {};
+    }
+}
+
+async function syncFollowContacts(limit = 40): Promise<void> {
+    const state = await readNostrState();
+    const pubkey = await getNostrPubkey();
+    if (!pubkey) return;
+
+    let follows = state.follows || [];
+    let metadataEvents: NostrEvent[] = [];
+    if (follows.length === 0) {
+        const contactListResponse = await primalRequest([
+            "contact_list",
+            { pubkey }
+        ]);
+        metadataEvents = contactListResponse.filter(
+            (event) => event.kind === 0
+        );
+        const followEvents = contactListResponse.filter(
+            (event) => event.kind === 3
+        );
+        const latest = followEvents.sort(
+            (a, b) => b.created_at - a.created_at
+        )[0];
+        follows =
+            latest?.tags
+                .filter((tag) => tag[0] === "p" && tag[1])
+                .map((tag) => nip19.npubEncode(normalizePubkey(tag[1]))) || [];
+        if (follows.length > 0) {
+            await writeNostrState({ ...state, follows });
+        }
+    }
+
+    if (follows.length === 0) return;
+
+    const contacts = await readContacts();
+    const existing = new Set(
+        Object.values(contacts)
+            .map((contact) => contact.npub)
+            .filter(Boolean)
+    );
+    const missing = follows.filter((follow) => !existing.has(follow));
+    if (missing.length === 0) return;
+
+    if (metadataEvents.length === 0) {
+        metadataEvents = await primalRequest([
+            "user_infos",
+            { pubkeys: missing.slice(0, limit).map(normalizePubkey) }
+        ]);
+    }
+    const latestProfiles = new Map<string, NostrEvent>();
+    for (const event of metadataEvents.filter((event) => event.kind === 0)) {
+        const current = latestProfiles.get(event.pubkey);
+        if (!current || event.created_at > current.created_at) {
+            latestProfiles.set(event.pubkey, event);
+        }
+    }
+
+    for (const follow of missing.slice(0, limit)) {
+        const pubkeyHex = normalizePubkey(follow);
+        const event = latestProfiles.get(pubkeyHex);
+        const metadata = metadataFromEvent(event);
+
+        contacts[newContactId()] = {
+            name:
+                String(metadata.display_name || metadata.name || "") ||
+                `${follow.slice(0, 12)}...`,
+            npub: follow,
+            ln_address:
+                typeof metadata.lud16 === "string" ? metadata.lud16 : undefined,
+            lnurl:
+                typeof metadata.lud06 === "string" ? metadata.lud06 : undefined,
+            image_url:
+                typeof metadata.picture === "string"
+                    ? metadata.picture
+                    : typeof metadata.image === "string"
+                      ? metadata.image
+                      : undefined,
+            last_used: 0
+        };
+    }
+
+    await writeContacts(contacts);
+}
+
 function ensureWallet(): Wallet {
     if (!wallet) throw new Error("Bark wallet is not initialized.");
     return wallet;
@@ -423,10 +783,24 @@ export async function initializeWasm() {
 export async function setupMutinyWallet(
     settings: MutinyWalletSettingStrings,
     _password?: string,
-    ..._args: unknown[]
+    ...args: unknown[]
 ): Promise<boolean> {
     await initializeWasm();
+    const maybeNsec = args.find(
+        (arg): arg is string =>
+            typeof arg === "string" && arg.trim().startsWith("nsec")
+    );
+    if (maybeNsec) {
+        const secretKey = decodeSecretKey(maybeNsec);
+        await writeNostrState({
+            ...(await readNostrState()),
+            secretKey,
+            pubkey: pubkeyFromSecret(secretKey)
+        });
+    }
+
     const config = barkConfig(settings);
+    activePrimalApi = settings.primal_api;
     let state = await readState();
     let created = false;
 
@@ -436,7 +810,7 @@ export async function setupMutinyWallet(
         created = true;
     }
 
-    const args = {
+    const walletArgs = {
         mnemonic: state.mnemonic,
         config,
         dbName: BARK_WALLET_DB
@@ -447,7 +821,7 @@ export async function setupMutinyWallet(
         wallet = await withTimeout(
             "Creating Bark wallet",
             Wallet.create({
-                ...args,
+                ...walletArgs,
                 forceRescan: false
             })
         );
@@ -455,7 +829,7 @@ export async function setupMutinyWallet(
         try {
             wallet = await withTimeout(
                 "Opening Bark wallet",
-                Wallet.open(args)
+                Wallet.open(walletArgs)
             );
         } catch (e) {
             console.warn(
@@ -465,7 +839,7 @@ export async function setupMutinyWallet(
             wallet = await withTimeout(
                 "Creating Bark wallet",
                 Wallet.create({
-                    ...args,
+                    ...walletArgs,
                     forceRescan: false
                 })
             );
@@ -525,7 +899,7 @@ export async function get_bitcoin_price(fiat: string): Promise<number> {
 }
 
 export async function get_tag_items(): Promise<TagItem[]> {
-    return [];
+    return get_contacts_sorted();
 }
 
 export async function get_network(): Promise<string> {
@@ -533,7 +907,21 @@ export async function get_network(): Promise<string> {
 }
 
 export async function get_nostr_profile(): Promise<NostrMetadata | undefined> {
-    return undefined;
+    const state = await readNostrState();
+    if (state.profile) return state.profile;
+
+    const pubkey = await getNostrPubkey();
+    if (!pubkey) return undefined;
+
+    const events = await primalRequest(["user_profile", { pubkey }]);
+    const latest = events
+        .filter((event) => event.kind === 0)
+        .sort((a, b) => b.created_at - a.created_at)[0];
+    if (!latest) return undefined;
+
+    const profile = metadataFromEvent(latest) as NostrMetadata;
+    await writeNostrState({ ...state, profile });
+    return profile;
 }
 
 export async function get_activity(
@@ -545,17 +933,49 @@ export async function get_activity(
 }
 
 export async function get_contact_for_npub(
-    _npub: string
+    npub: string
 ): Promise<TagItem | undefined> {
-    return undefined;
+    const normalized = normalizeNpub(npub);
+    const [contacts, nostr] = await Promise.all([
+        readContacts(),
+        readNostrState()
+    ]);
+    const entry = Object.entries(contacts).find(
+        ([, contact]) => contact.npub === normalized
+    );
+    if (!entry) return undefined;
+    return contactToTagItem(entry[0], entry[1], nostr.follows || []);
 }
 
-export async function create_new_contact(..._args: any[]): Promise<string> {
-    unsupported("Contacts");
+export async function create_new_contact(
+    name: string,
+    npub?: string,
+    ln_address?: string,
+    lnurl?: string,
+    image_url?: string
+): Promise<string> {
+    const contacts = await readContacts();
+    const id = newContactId();
+    contacts[id] = {
+        name,
+        npub: npub ? normalizeNpub(npub) : undefined,
+        ln_address,
+        lnurl,
+        image_url,
+        last_used: Math.floor(Date.now() / 1000)
+    };
+    await writeContacts(contacts);
+    return id;
 }
 
-export async function get_tag_item(_id: string): Promise<TagItem | undefined> {
-    return undefined;
+export async function get_tag_item(id: string): Promise<TagItem | undefined> {
+    const [contacts, nostr] = await Promise.all([
+        readContacts(),
+        readNostrState()
+    ]);
+    const contact = contacts[id];
+    if (!contact) return undefined;
+    return contactToTagItem(id, contact, nostr.follows || []);
 }
 
 export async function get_label_activity(
@@ -567,9 +987,56 @@ export async function get_label_activity(
 }
 
 export async function get_dm_conversation(
-    ..._args: any[]
+    npub: string,
+    limit: number | bigint = 20,
+    until?: number,
+    since?: number
 ): Promise<FakeDirectMessage[] | undefined> {
-    return [];
+    const state = await readNostrState();
+    if (!state.secretKey || !state.pubkey) return [];
+
+    const counterparty = normalizePubkey(npub);
+    const params: Record<string, string | number> = {
+        sender: state.pubkey,
+        receiver: counterparty,
+        limit: Number(limit),
+        since: since ? Number(since) : 0
+    };
+    if (until) params.until = Number(until);
+
+    const events = (await primalRequest(["get_directmsgs", params])).filter(
+        (event) => event.kind === 4
+    );
+    const unique = new Map(events.map((event) => [event.id, event]));
+    const messages: (FakeDirectMessage | undefined)[] = await Promise.all(
+        Array.from(unique.values()).map(async (event) => {
+            const peer =
+                event.pubkey === state.pubkey ? counterparty : event.pubkey;
+            try {
+                return {
+                    from: nip19.npubEncode(event.pubkey),
+                    to: nip19.npubEncode(
+                        event.tags.find((tag) => tag[0] === "p")?.[1] ||
+                            state.pubkey!
+                    ),
+                    message: await nip04.decrypt(
+                        state.secretKey!,
+                        peer,
+                        event.content
+                    ),
+                    date: event.created_at
+                };
+            } catch (e) {
+                console.warn("Unable to decrypt Nostr DM", e);
+                return undefined;
+            }
+        })
+    );
+
+    return messages
+        .filter((message): message is FakeDirectMessage => !!message)
+        .sort((a, b) => b.date - a.date)
+        .slice(0, Number(limit));
 }
 
 export async function get_invoice(
@@ -583,31 +1050,107 @@ export async function get_invoice(
 }
 
 export async function get_contacts_sorted(_limit?: number): Promise<TagItem[]> {
-    return [];
+    await syncFollowContacts(_limit);
+    const [contacts, nostr] = await Promise.all([
+        readContacts(),
+        readNostrState()
+    ]);
+    return Object.entries(contacts)
+        .map(([id, contact]) => contactToTagItem(id, contact, nostr.follows))
+        .sort((a, b) => {
+            const lastUsed =
+                Number(b.last_used || 0) - Number(a.last_used || 0);
+            return lastUsed || a.name.localeCompare(b.name);
+        })
+        .slice(0, _limit);
 }
 
-export async function edit_contact(..._args: any[]): Promise<void> {
-    unsupported("Contacts");
+export async function edit_contact(
+    id: string,
+    name: string,
+    npub?: string,
+    ln_address?: string,
+    lnurl?: string,
+    image_url?: string
+): Promise<void> {
+    const contacts = await readContacts();
+    const existing = contacts[id];
+    if (!existing) throw new Error("Contact not found.");
+    contacts[id] = {
+        ...existing,
+        name,
+        npub: npub ? normalizeNpub(npub) : undefined,
+        ln_address,
+        lnurl,
+        image_url,
+        last_used: Math.floor(Date.now() / 1000)
+    };
+    await writeContacts(contacts);
 }
 
-export async function delete_contact(..._args: any[]): Promise<void> {
-    unsupported("Contacts");
+export async function delete_contact(id: string): Promise<void> {
+    const contacts = await readContacts();
+    delete contacts[id];
+    await writeContacts(contacts);
 }
 
-export async function follow_npub(..._args: any[]): Promise<void> {
-    unsupported("Nostr follows");
+export async function follow_npub(npub: string): Promise<void> {
+    const { pubkey } = await ensureNostrKeys();
+    await syncFollowContacts();
+    const normalized = normalizeNpub(npub);
+    const state = await readNostrState();
+    const follows = Array.from(
+        new Set([
+            ...(state.follows || []),
+            normalized,
+            nip19.npubEncode(pubkey)
+        ])
+    );
+    await writeNostrState({ ...state, follows });
+    await publishNostrEvent({
+        kind: 3,
+        content: contactListContent(),
+        tags: follows.map((follow) => ["p", normalizePubkey(follow)]),
+        created_at: Math.floor(Date.now() / 1000)
+    });
 }
 
-export async function unfollow_npub(..._args: any[]): Promise<void> {
-    unsupported("Nostr follows");
+export async function unfollow_npub(npub: string): Promise<void> {
+    await ensureNostrKeys();
+    await syncFollowContacts();
+    const normalized = normalizeNpub(npub);
+    const state = await readNostrState();
+    const follows = (state.follows || []).filter(
+        (follow) => follow !== normalized
+    );
+    await writeNostrState({ ...state, follows });
+    await publishNostrEvent({
+        kind: 3,
+        content: contactListContent(),
+        tags: follows.map((follow) => ["p", normalizePubkey(follow)]),
+        created_at: Math.floor(Date.now() / 1000)
+    });
 }
 
-export async function send_dm(..._args: any[]): Promise<string | undefined> {
-    unsupported("Nostr DMs");
+export async function send_dm(
+    npub: string,
+    message: string
+): Promise<string | undefined> {
+    const { secretKey } = await ensureNostrKeys();
+    const pubkey = normalizePubkey(npub);
+    const content = await nip04.encrypt(secretKey, pubkey, message);
+    const event = await publishNostrEvent({
+        kind: 4,
+        content,
+        tags: [["p", pubkey]],
+        created_at: Math.floor(Date.now() / 1000)
+    });
+    return event.id;
 }
 
 export async function get_npub(): Promise<string | undefined> {
-    return undefined;
+    const pubkey = await getNostrPubkey();
+    return pubkey ? nip19.npubEncode(pubkey) : undefined;
 }
 
 export async function decode_invoice(
@@ -905,8 +1448,28 @@ export async function list_channels(): Promise<MutinyChannel[]> {
     return [];
 }
 
-export async function setup_new_profile(..._args: any[]): Promise<unknown> {
-    return {};
+export async function setup_new_profile(
+    name?: string,
+    img_url?: string,
+    lnurl?: string,
+    nip05?: string
+): Promise<NostrMetadata> {
+    await ensureNostrKeys();
+    const profile: NostrMetadata = {
+        name,
+        display_name: name,
+        picture: img_url,
+        lud16: lnurl,
+        nip05
+    };
+    await publishNostrEvent({
+        kind: 0,
+        content: profileContent(profile),
+        tags: [],
+        created_at: Math.floor(Date.now() / 1000)
+    });
+    await writeNostrState({ ...(await readNostrState()), profile });
+    return profile;
 }
 
 export async function discover_federations(): Promise<
@@ -926,13 +1489,67 @@ export async function new_federation(..._args: any[]): Promise<unknown> {
 }
 
 export async function edit_nostr_profile(
-    ..._args: any[]
+    name?: string,
+    img_url?: string,
+    lnurl?: string,
+    nip05?: string
 ): Promise<NostrMetadata> {
-    unsupported("Nostr profile");
+    await ensureNostrKeys();
+    const profile: NostrMetadata = {
+        name,
+        display_name: name,
+        picture: img_url,
+        lud16: lnurl,
+        nip05
+    };
+    await publishNostrEvent({
+        kind: 0,
+        content: profileContent(profile),
+        tags: [],
+        created_at: Math.floor(Date.now() / 1000)
+    });
+    await writeNostrState({ ...(await readNostrState()), profile });
+    return profile;
 }
 
-export async function upload_profile_pic(..._args: any[]): Promise<string> {
-    unsupported("Profile uploads");
+export async function upload_profile_pic(img_base64: string): Promise<string> {
+    const url = "https://nostr.build/api/v2/upload/profile";
+    const imageBytes = base64ToBytes(img_base64);
+    const payloadHash = await sha256Hex(imageBytes);
+    const authEvent = await signNostrEvent({
+        kind: 27235,
+        content: "",
+        tags: [
+            ["u", url],
+            ["method", "POST"],
+            ["payload", payloadHash]
+        ],
+        created_at: Math.floor(Date.now() / 1000)
+    });
+
+    const formData = new FormData();
+    formData.append("fileToUpload", new Blob([imageBytes]));
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            Authorization: `Nostr ${base64Encode(JSON.stringify(authEvent))}`
+        },
+        body: formData
+    });
+    if (!response.ok) throw new Error("Failed to upload profile picture.");
+
+    const result = (await response.json()) as {
+        status?: string;
+        message?: string;
+        data?: { url?: string }[];
+    };
+    const uploadedUrl = result.data?.[0]?.url;
+    if (result.status !== "success" || !uploadedUrl) {
+        throw new Error(result.message || "Failed to upload profile picture.");
+    }
+
+    return uploadedUrl;
 }
 
 export async function get_pending_nwc_invoices(): Promise<
@@ -1074,16 +1691,53 @@ export async function pay_subscription_invoice(..._args: any[]): Promise<void> {
     unsupported("Mutiny+");
 }
 
-export async function change_nostr_keys(..._args: any[]): Promise<string> {
-    unsupported("Nostr keys");
+export async function change_nostr_keys(
+    nsec?: string,
+    extension_pk?: string
+): Promise<string> {
+    const state = await readNostrState();
+    let secretKey: string | undefined;
+    let pubkey: string;
+
+    if (nsec) {
+        secretKey = decodeSecretKey(nsec);
+        pubkey = pubkeyFromSecret(secretKey);
+    } else if (extension_pk) {
+        pubkey = normalizePubkey(extension_pk);
+    } else {
+        secretKey = bytesToHex(generateSecretKey());
+        pubkey = pubkeyFromSecret(secretKey);
+    }
+
+    await writeNostrState({
+        ...state,
+        secretKey,
+        pubkey,
+        follows: state.follows || []
+    });
+    return nip19.npubEncode(pubkey);
 }
 
 export async function delete_profile(..._args: any[]): Promise<void> {
-    unsupported("Nostr profile");
+    await ensureNostrKeys();
+    const profile: NostrMetadata = {
+        ...(await get_nostr_profile()),
+        deleted: true
+    };
+    await publishNostrEvent({
+        kind: 0,
+        content: profileContent(profile),
+        tags: [],
+        created_at: Math.floor(Date.now() / 1000)
+    });
+    await writeNostrState({ ...(await readNostrState()), profile });
 }
 
 export async function export_nsec(): Promise<string | undefined> {
-    return undefined;
+    const state = await readNostrState();
+    return state.secretKey
+        ? nip19.nsecEncode(hexToBytes(state.secretKey))
+        : undefined;
 }
 
 export async function show_seed(): Promise<string> {
@@ -1150,15 +1804,15 @@ export async function npub_to_hexpub(
     npub: string,
     ..._args: any[]
 ): Promise<string> {
-    return npub;
+    return normalizePubkey(npub);
 }
 
 export async function nsec_to_npub(nsec: string): Promise<string> {
-    return nsec;
+    return nip19.npubEncode(pubkeyFromSecret(decodeSecretKey(nsec)));
 }
 
 export async function hexpub_to_npub(hexpub: string): Promise<string> {
-    return hexpub;
+    return nip19.npubEncode(normalizePubkey(hexpub));
 }
 
 export async function restore_mnemonic(

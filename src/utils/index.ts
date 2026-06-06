@@ -6,6 +6,7 @@ export * from "./gradientHash";
 export * from "./mempoolTxUrl";
 export * from "./objectToSearchParams";
 export * from "./prettyPrintTime";
+export * from "./primal";
 export * from "./subscriptions";
 export * from "./timeout";
 export * from "./typescript";
