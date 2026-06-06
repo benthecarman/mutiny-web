@@ -1,16 +1,12 @@
-import { useNavigate } from "@solidjs/router";
-import { Users } from "lucide-solid";
 import { createMemo, Match, Show, Suspense, Switch } from "solid-js";
 
 import {
     AmountFiat,
     AmountSats,
-    ButtonCard,
     FancyCard,
     Indicator,
     InfoBox,
     MediumHeader,
-    NiceP,
     VStack
 } from "~/components";
 import { useI18n } from "~/i18n/context";
@@ -45,7 +41,6 @@ export function LoadingShimmer(props: { center?: boolean; small?: boolean }) {
 
 export function BalanceBox(props: { loading?: boolean; small?: boolean }) {
     const [state, _actions] = useMegaStore();
-    const navigate = useNavigate();
     const i18n = useI18n();
 
     const totalOnchain = createMemo(
@@ -57,61 +52,6 @@ export function BalanceBox(props: { loading?: boolean; small?: boolean }) {
 
     return (
         <VStack>
-            <Switch>
-                <Match when={state.federations && state.federations.length}>
-                    <MediumHeader>Fedimint</MediumHeader>
-                    <FancyCard>
-                        <Show
-                            when={!props.loading}
-                            fallback={<LoadingShimmer />}
-                        >
-                            <div class="flex justify-between">
-                                <div class="flex flex-col gap-1">
-                                    <div class="text-2xl">
-                                        <AmountSats
-                                            amountSats={
-                                                state.balance?.federation || 0n
-                                            }
-                                            icon="community"
-                                            denominationSize="lg"
-                                            isFederation
-                                        />
-                                    </div>
-                                    <div class="text-lg text-white/70">
-                                        <Suspense>
-                                            <AmountFiat
-                                                amountSats={
-                                                    state.balance?.federation ||
-                                                    0n
-                                                }
-                                                denominationSize="sm"
-                                            />
-                                        </Suspense>
-                                    </div>
-                                </div>
-                            </div>
-                        </Show>
-                    </FancyCard>
-                    <ButtonCard
-                        onClick={() => navigate("/settings/federations")}
-                    >
-                        <div class="flex items-center gap-2">
-                            <Users class="inline-block text-m-red" />
-                            <NiceP>{i18n.t("profile.manage_federation")}</NiceP>
-                        </div>
-                    </ButtonCard>
-                </Match>
-                <Match when={true}>
-                    <ButtonCard
-                        onClick={() => navigate("/settings/federations")}
-                    >
-                        <div class="flex items-center gap-2">
-                            <Users class="inline-block text-m-red" />
-                            <NiceP>{i18n.t("profile.join_federation")}</NiceP>
-                        </div>
-                    </ButtonCard>
-                </Match>
-            </Switch>
             <MediumHeader>{i18n.t("profile.self_custody")}</MediumHeader>
             <FancyCard>
                 <Show when={!props.loading} fallback={<LoadingShimmer />}>
