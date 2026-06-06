@@ -61,10 +61,7 @@ export function Search() {
                         <Scan class="h-6 w-6" />
                     </A>{" "}
                 </div>
-                {/* Need to put the search view in a supsense so it loads list on first nav */}
-                <Suspense>
-                    <ActualSearch />
-                </Suspense>
+                <ActualSearch />
             </DefaultMain>
             <NavBar activeTab="send" />
         </MutinyWalletGuard>
